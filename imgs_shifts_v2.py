@@ -58,10 +58,13 @@ lower_left  = False
 
 
 ###
-#   Apply a heaviside function to the image
+#   Apply a heavyside function to the image
 #
 bool_heavy = False
 bool_heavy = True
+
+#   Background offset
+offset = 0
 
 
 ###
@@ -103,7 +106,7 @@ import matplotlib.pyplot as plt
 from skimage import data
 from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
-from skimage.io import (imread, imread_collection, imsave, imshow)
+from skimage.io import imread, imread_collection, imsave, imshow
 
 import checks
 import aux
@@ -117,8 +120,12 @@ checks.check_out(path_out)
 
 #   Make file list
 sys.stdout.write("\rRead images...\n")
-fileList, nfiles = aux.mkfilelist(path_in, formats=formats, addpath=True,
-                                  sort=True)
+fileList, nfiles = aux.mkfilelist(
+    path_in,
+    formats=formats,
+    addpath=True,
+    sort=True,
+    )
 
 #   Read images
 im = imread_collection(fileList)
@@ -172,10 +179,16 @@ for i in range(0, nfiles):
     sys.stdout.write("\rImage %i/%i" % (id_c, nfiles))
     sys.stdout.flush()
 
-    #   "Normalize" image & calculate heaviside function for the image
+    #   "Normalize" image & calculate heavyside function for the image
     if bool_heavy:
-        reff = np.heaviside(im[ref_id][:,:,0]/2**(bit_depth), 0.03)
-        test = np.heaviside(im[i][:,:,0]/2**(bit_depth), 0.03)
+        reff = np.heaviside(
+            im[ref_id][:,:,0]/2**(bit_depth)-offset/2**(bit_depth),
+            0.03,
+            )
+        test = np.heaviside(
+            im[i][:,:,0]/2**(bit_depth)-offset/2**(bit_depth),
+            0.03,
+            )
     else:
         reff = im[ref_id][:,:,0]
         test = im[i][:,:,0]
