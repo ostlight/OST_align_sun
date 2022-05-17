@@ -13,6 +13,10 @@ from astropy.nddata import CCDData
 
 from skimage.registration import phase_cross_correlation
 
+from cv2 import CV_32F, Laplacian, VideoWriter_fourcc, VideoWriter, \
+    FONT_HERSHEY_SIMPLEX, LINE_AA, putText, GaussianBlur, cvtColor, \
+    COLOR_BGR2HSV, COLOR_HSV2BGR, BORDER_DEFAULT, meanStdDev, resize, \
+    matchTemplate, minMaxLoc, TM_CCORR_NORMED, bilateralFilter, INTER_CUBIC
 
 ############################################################################
 ####                        Routines & definitions                      ####
@@ -288,7 +292,8 @@ def make_index_from_shifts(nx, ny, maxx, minx, maxy, miny, shift):
     return xs, xe, ys, ye
 
 
-def trim_core(img, i, nfiles, maxx, minx, maxy, miny, shift, verbose):
+def trim_core(img, i, nfiles, maxx, minx, maxy, miny, shift, verbose,
+              xs_cut=0, xe_cut=0, ys_cut=0, ye_cut=0):
     '''
         Trim image 'i' based on a shift compared to a reference image
 
@@ -327,6 +332,22 @@ def trim_core(img, i, nfiles, maxx, minx, maxy, miny, shift, verbose):
         verbose         : `boolean`, optional
             If True additional output will be printed to the command line.
             Default is ``False``.
+
+        xs_cut          : `integer`, optional
+            Additional pixel to cut in X direction. From the beginning of the
+            image.
+
+        xe_cut          : `integer`, optional
+            Additional pixel to cut in X direction. From the end of the
+            image.
+
+        ys_cut          : `integer`, optional
+            Additional pixel to cut in Y direction. From the beginning of the
+            image.
+
+        ye_cut          : `integer`, optional
+            Additional pixel to cut in Y direction. From the end of the
+            image.
     '''
     if verbose:
         #   Write status to console
@@ -345,7 +366,7 @@ def trim_core(img, i, nfiles, maxx, minx, maxy, miny, shift, verbose):
         )
 
     #   Trim the image
-    img = ccdp.trim_image(img[ys:ye, xs:xe])
+    img = ccdp.trim_image(img[ys+ys_cut:ye-ye_cut, xs+xs_cut:xe-xe_cut])
 
     return img
 
@@ -562,3 +583,249 @@ def calculate_image_shifts(ifc, ref_img, comment, method='skimage'):
     minx, maxx, miny, maxy = cal_delshifts_new(shift, pythonFORMAT=True)
 
     return shift, flip, minx, maxx, miny, maxy
+
+
+def write_video(name, frame_list, annotations, fps, depth=8):
+    """
+        Create a video file from a list of frames.
+
+        Source: Planetary System Stacker
+        Github: https://github.com/Rolf-Hempel/PlanetarySystemStacker/tree/master/planetary_system_stacker
+
+        Parameters
+        ----------
+        name            : `string`
+            File name of the video output
+
+        frame_list      : `list` of `numpy.ndarray`
+            List of frames to be written
+
+        annotations     : `string`
+            List of text strings to be written into the corresponding frame
+
+        fps             : `integer`
+            Frames per second of video
+
+        depth           : 'integer`
+            Bit depth of the image "frame", either 8 or 16.
+    """
+
+    #   Delete the output file if it exists.
+    try:
+        os.unlink(name)
+    except:
+        pass
+
+    #   Compute video frame size.
+    frame_height = frame_list[0].shape[0]
+    frame_width = frame_list[0].shape[1]
+
+    #   Define the codec and create VideoWriter object
+    #fourcc = VideoWriter_fourcc('D', 'I', 'V', 'X')
+    #fourcc = VideoWriter_fourcc('v', 'p', '0', '9')
+    #fourcc = VideoWriter_fourcc('v', 'p', '0', '8')
+    #fourcc = VideoWriter_fourcc('X', '2', '6', '4')
+    fourcc = VideoWriter_fourcc('m', 'p', '4', 'v')
+    #fourcc = VideoWriter_fourcc(*'MPEG')
+    out = VideoWriter(name, fourcc, fps, (frame_width, frame_height))
+
+    #   Define font for annotations.
+    font = FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (20, 50)
+    fontScale = 1
+    fontColor = (255, 255, 255)
+    fontThickness = 1
+    lineType = LINE_AA
+
+    #   For each frame: If monochrome, convert it to three-channel color mode.
+    #   Insert annotation and write the frame.
+    for index, frame in enumerate(frame_list):
+        #   If the frames are 16bit, convert them to 8bit.
+        if depth == 8:
+            frame_8b = frame
+        else:
+            frame_8b = (frame / 255.).astype(uint8)
+
+        img_shape = frame.shape
+        if len(frame.shape) == 2:
+            rgb_frame = np.stack((frame_8b,) * 3, -1)
+        else:
+            rgb_frame = np.copy(np.array(frame_8b))
+            rgb_frame[:,:,0] = frame_8b[:,:,2]
+            rgb_frame[:,:,2] = frame_8b[:,:,0]
+
+        putText(
+            rgb_frame,
+            annotations,
+            bottomLeftCornerOfText,
+            font,
+            fontScale,
+            fontColor,
+            fontThickness,
+            lineType,
+            )
+        out.write(rgb_frame)
+    out.release()
+
+
+class PostprocLayer(object):
+    """
+        Instances of this class hold the parameters which define a
+        postprocessing layer.
+
+        Source: Planetary System Stacker
+        Github: https://github.com/Rolf-Hempel/PlanetarySystemStacker/tree/master/planetary_system_stacker
+
+        Example:
+        PostprocLayer("Multilevel unsharp masking", 1., 1., 0., 20, 0., False)
+
+    """
+
+    def __init__(self, radius, amount, bi_fraction, bi_range, denoise, luminance_only):
+        """
+        Initialize the Layer instance with values for Gaussian radius, amount of
+        sharpening and a flag which indicates on which channel the sharpening is
+        to be applied.
+
+        Parameters
+        ----------
+        radius          : `float`
+            Radius (in pixels) of the Gaussian sharpening kernel.
+        amount          : `float`
+            Amount of sharpening for this layer.
+        bi_fraction     : `float`
+            Fraction of bilateral vs. Gaussian filter (0.: only Gaussian,
+            1.: only bilateral).
+        bi_range        : `float`
+            Luminosity range parameter of bilateral filter
+            (0 <= bi_range <= 255).
+        denoise         : `float`
+            Fraction of Gaussian blur to be applied to this layer
+            (0.: No Gaussian blur, 1.: Full filter application).
+        luminance_only  : `boolean`
+            True, if sharpening is to be applied to the luminance
+            channel only.
+        """
+
+        self.radius = radius
+        self.amount = amount
+        self.bi_fraction = bi_fraction
+        self.bi_range = bi_range
+        self.denoise = denoise
+        self.luminance_only = luminance_only
+
+
+def post_process(image, layers):
+    """
+        Apply all postprocessing layers to the input image "image". If the
+        image is in color mode, the postprocessing is computed either in BGR
+        mode or on the luminance channel only. All computations are performed
+        in 32bit floating point mode.
+
+        Parameters
+        ----------
+        image       : `numpy.ndarray`
+            Input image, either BGR or Grayscale (16bit uint).
+
+        layers      : `list` of PostprocLayer objects
+            Postprocessing layers with all parameters.
+
+        Returns
+        -------
+                    : `numpy.ndarray`
+            Processed image in the same 16bit uint format as the input image.
+
+
+        Source: Planetary System Stacker
+        Github: https://github.com/Rolf-Hempel/PlanetarySystemStacker/tree/master/planetary_system_stacker
+    """
+
+    #   Check if the original image is selected (version 0). In this case
+    #   nothing is to be done.
+    if not layers:
+        return image.astype(np.uint16)
+
+    #   Convert the image to 32bit floating point format.
+    input_image = image.astype(np.float32)
+
+    color = len(image.shape) == 3
+
+    #   If the luminance channel is to be processed only, extract the luminance
+    #   channel.
+    if color and layers[0].luminance_only:
+        input_image_hsv = cvtColor(input_image, COLOR_BGR2HSV)
+        layer_input = input_image_hsv[:, :, 2]
+    else:
+        layer_input = input_image
+
+    #   Go through all layers and apply the sharpening filters.
+    for layer_index, layer in enumerate(layers):
+
+        #   Bilateral filter is needed:
+        if abs(layer.bi_fraction) > 1.e-5:
+            layer_bilateral = bilateralFilter(
+                layer_input,
+                0,
+                layer.bi_range * 256.,
+                layer.radius / 3.,
+                borderType=BORDER_DEFAULT,
+                )
+        # Gaussian filter is needed:
+        if abs(layer.bi_fraction - 1.) > 1.e-5:
+            layer_gauss = GaussianBlur(
+                layer_input,
+                (0, 0),
+                layer.radius / 3.,
+                borderType=BORDER_DEFAULT,
+                )
+
+        # Compute the input for the next layer. First case: bilateral only.
+        if abs(layer.bi_fraction - 1.) <= 1.e-5:
+            next_layer_input = layer_bilateral
+        # Case Gaussian only.
+        elif abs(layer.bi_fraction) <= 1.e-5:
+            next_layer_input = layer_gauss
+        # Mixed case.
+        else:
+            next_layer_input = layer_bilateral * layer.bi_fraction + \
+                               layer_gauss * (1. - layer.bi_fraction)
+
+        layer_component_before_denoise = layer_input - next_layer_input
+
+        # If denoising is chosen for this layer, apply a Gaussian filter.
+        if layer.denoise > 1.e-5:
+            layer_component = GaussianBlur(
+                layer_component_before_denoise,
+                (0, 0),
+                layer.radius / 3.,
+                borderType=BORDER_DEFAULT,
+                ) * layer.denoise + \
+                layer_component_before_denoise * (1. - layer.denoise)
+        else:
+            layer_component = layer_component_before_denoise
+
+        #   Accumulate the contributions from all layers. On the first layer
+        #   initialize the summation buffer.
+        if layer_index:
+            components_accumulated += layer_component * layer.amount
+        else:
+            components_accumulated = layer_component * layer.amount
+
+        layer_input = next_layer_input
+
+    #   After all layers are accumulated, finally add the maximally
+    #   blurred image.
+    components_accumulated += next_layer_input
+
+    #   Reduce the value range so that they fit into 16bit uint, and convert
+    #   to uint16. In case the luminance channel was processed only, insert
+    #   the processed luminance channel into the HSV representation of the
+    #   original image, and convert back to BGR.
+    if color and layers[0].luminance_only:
+        input_image_hsv[:, :, 2] = components_accumulated
+        return cvtColor(
+            input_image_hsv.clip(min=0., max=65535.),
+            COLOR_HSV2BGR,
+            ).astype(np.uint16)
+    else:
+        return components_accumulated.clip(min=0., max=65535.).astype(np.uint16)

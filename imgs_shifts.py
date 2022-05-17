@@ -218,7 +218,7 @@ for i in range(0,nfiles):
         )
 
     #   Actual image cutting
-    img_cut[i] = im[i][ys-ys_cut:ye-ye_cut, xs-xs_cut:xe-xe_cut]
+    img_cut[i] = im[i][ys+ys_cut:ye-ye_cut, xs+xs_cut:xe-xe_cut]
 
     #   Plot reference and offset image
     if i == id_img and plot_cut and ref_id <= id_img:

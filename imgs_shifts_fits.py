@@ -12,8 +12,9 @@
 ############################################################################
 
 #   Path to the images
-#path_in  = '2022-05-05-1439_9-1-CapObj/2022-05-05-1439_9-1-CapObj/'
-path_in  = '2022-05-05-1439_9-1-CapObj/test/'
+path_in  = '2022-05-05-1439_9-1-CapObj/2022-05-05-1439_9-1-CapObj/'
+#path_in  = '2022-05-05-1439_9-1-CapObj/test/'
+#path_in  = '2022-05-05-1439_9-1-CapObj/test_2/'
 
 #   Output directory
 path_out = 'out_Halpha/'
@@ -24,6 +25,7 @@ formats = [".FIT",".fit",".FITS",".fits"]
 
 #   Output formal
 out_format = ".tiff"
+out_format = ".jpg"
 #out_format = ".fit"
 
 #   Reference image
@@ -46,7 +48,7 @@ mode = 'cut'
 #
 #   Mask image?
 bool_mask = True
-#bool_mask = False
+bool_mask = False
 
 #   Points to define the mask -> the area enclosed by the points
 #                                will be masked
@@ -74,14 +76,114 @@ offset = 11000
 ###
 #   Additional cuts to the images
 #
+##   Upper edge
+#ys_cut = 350
+##   Lower edge
+#ye_cut = 320
+##   Left edge
+#xs_cut = 580
+##   Right edge
+#xe_cut = 570
+
 #   Upper edge
-ys_cut = 0
+ys_cut = 300
 #   Lower edge
-ye_cut = 0
+ye_cut = 270
 #   Left edge
-xs_cut = 0
+xs_cut = 530
 #   Right edge
-xe_cut = 0
+xe_cut = 520
+
+
+###
+#   Make RGB from Gray scale? (only for not FITS file formats)
+#
+mkRGB = True
+
+#   Scaling parameters
+#r_scale = 1.0
+#g_scale = 0.7
+#b_scale = 0.7
+#r_scale = 0.85
+#g_scale = 0.4
+#b_scale = 0.4
+#r_scale = 0.85
+#g_scale = 0.5
+#b_scale = 0.5
+r_scale = 0.9
+g_scale = 0.5
+b_scale = 0.5
+#r_scale = 0.9
+#g_scale = 0.45
+#b_scale = 0.45
+
+
+###
+#   Image postprocessing
+#
+#   Global histogram equalization
+global_histo_equalization = False
+
+#   Local histogram equalization
+local_histo_equalization = False
+#   Footprint for local histogram equalization (disk morphology is used)
+disk_size = 30
+
+#   Adaptive histogram equalization
+adaptive_histo_equalization = False
+#   Clip limit for adaptive histogram equalization
+clip_limit = 0.03
+clip_limit = 0.002
+
+#   log contrast adjustment
+log_cont_adjust = False
+#   gain for log contrast adjustment
+log_gain = 1.
+
+#   Gamma contrast adjustment
+gamma_adjust = False
+#   Gamma value
+gamma = 1.3
+
+#   Contrast stretching
+contrast_stretching = True
+#   Upper percentile for contrast stretching
+upper_percentile = 98.
+upper_percentile = 100.
+#   Lower percentile for contrast stretching
+lower_percentile = 2.
+lower_percentile = 0.
+
+#   Define parameters for postprocessing/sharpening
+#   (multiple "layers" are possible)
+#
+#   Parameters
+#   ----------
+#       radius          : `float`
+#           Radius (in pixels) of the Gaussian sharpening kernel.
+#       amount          : `float`
+#           Amount of sharpening for this layer.
+#       bi_fraction     : `float`
+#           Fraction of bilateral vs. Gaussian filter (0.: only Gaussian,
+#           1.: only bilateral).
+#       bi_range        : `float`
+#           Luminosity range parameter of bilateral filter
+#           (0 <= bi_range <= 255).
+#       denoise         : `float`
+#           Fraction of Gaussian blur to be applied to this layer
+#           (0.: No Gaussian blur, 1.: Full filter application).
+#       luminance_only  : `boolean`
+#           True, if sharpening is to be applied to the luminance
+#           channel only.
+#
+#   Usage: [radius, amount, bi_fraction, bi_range, denoise, luminance_only]
+
+#   Example:
+postprocess_layers = [
+    [1.9, 6., 0.5, 20, 0.8, False,],
+    [2.4, 6., 0.35, 20, 0.72, False],
+    [3.9, 2.0, 0.35, 20, 0.72, False],
+    ]
 
 
 ###
@@ -89,12 +191,26 @@ xe_cut = 0
 #
 #   Plot the image mask and reference image
 plot_mask = True
-#plot_mask = False
+plot_mask = False
 
 #   Plot cut images
 plot_cut  = True
+plot_cut  = False
 #   ID of the image to plot
 id_img    = 19
+
+
+###
+#   Video options
+#
+#   Make a video (True or False)?
+mk_video = True
+#   Video name
+video_name = 'test_Halpha'
+#   Video annotation
+video_annotation = ''
+#   Frames per second
+fps = 20
 
 
 ############################################################################
@@ -114,6 +230,8 @@ import matplotlib.pyplot as plt
 import ccdproc as ccdp
 
 from astropy.nddata import CCDData
+#from astropy import log
+#log.setLevel('ERROR')
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -122,6 +240,11 @@ from skimage import data
 from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
 from skimage.io import imread, imread_collection, imsave, imshow
+
+from skimage.util import img_as_ubyte
+from skimage import exposure
+from skimage.morphology import disk
+from skimage.filters import rank
 
 import checks
 import aux
@@ -257,6 +380,7 @@ shift, flip, minx, maxx, miny, maxy = aux.calculate_image_shifts(
 #
 #   Loop over and trim all images
 i = 0
+img_list = []
 for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
     #   Write status to console
     sys.stdout.write("\rApply shift to image %i/%i" % (i+1, nfiles))
@@ -281,6 +405,10 @@ for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
             miny,
             shift,
             verbose,
+            xs_cut=xs_cut,
+            xe_cut=xe_cut,
+            ys_cut=ys_cut,
+            ye_cut=ye_cut,
             )
     elif mode == 'extend':
         print('Sorry the extend mode is not yet implemented. -> EXIT')
@@ -328,18 +456,154 @@ for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
 
     i += 1
 
-    ##   Write image
+    ###
+    #   Postprocessing
+    #
+
+    #print('---------------------')
+    #print(img_out.data)
+    #img_out.data = aux.post_process(img_out.data, layers)
+    #print(processed_data)
+    #print('=============================')
+
+    #print(img_out.data)
+    #print('-----------------')
+
+    #   Global histogram equalize
+    if global_histo_equalization:
+        img_glob_eq = exposure.equalize_hist(img_out.data)
+        img_out.data = img_glob_eq*2**(bit_depth)
+
+    #   Local equalization
+    if local_histo_equalization:
+        footprint = disk(disk_size)
+        img_eq = rank.equalize(img_out.data, footprint)
+        img_out.data = img_eq
+
+    #   Adaptive histogram equalization
+    if adaptive_histo_equalization:
+        img_adapteq = exposure.equalize_adapthist(
+            img_out.data,
+            clip_limit=clip_limit,
+            )
+        img_out.data = img_adapteq*2**(bit_depth)
+
+    #   log contrast adjustment
+    if log_cont_adjust:
+        logarithmic_corrected = exposure.adjust_log(img_out.data, log_gain)
+        img_out.data = logarithmic_corrected
+
+    #   Gamma contrast adjustment
+    if gamma_adjust:
+        gamma_corrected = exposure.adjust_gamma(img_out.data, gamma)
+        img_out.data = gamma_corrected
+
+    #   Contrast stretching
+    if contrast_stretching:
+        plow, pup = np.percentile(
+            img_out.data,
+            (lower_percentile, upper_percentile),
+            )
+        img_rescale = exposure.rescale_intensity(
+            img_out.data,
+            in_range=(plow, pup),
+            )
+        img_out.data = img_rescale
+
+
+    ###
+    #   Sharp the image
+    #
+    #   Default layer
+    layers = [aux.PostprocLayer(1., 1., 0., 20, 0., False)]
+
+    #   Add user layer
+    for layer in postprocess_layers:
+        layers.append(aux.PostprocLayer(*layer))
+
+    #   Sharp/prostprocess image
+    img_out.data = aux.post_process(img_out.data, layers)
+
+
+    ###
+    #   Prepare array with RGB image
+    #
+    if mkRGB and out_format not in [".FIT",".fit",".FITS",".fits"]:
+        #   Get shape of the trimmed image
+        out_shape = img_out.data.shape
+
+        #   Prepare array
+        rgb_img = np.zeros(
+            (out_shape[0], out_shape[1], 4),
+            dtype='uint8',
+            )
+
+        #   Scale data, convert data to 8bit range and add data to the array
+        rgb_img[:,:,0] = img_out.data * r_scale / 2**(bit_depth) * 255
+        rgb_img[:,:,1] = img_out.data * g_scale / 2**(bit_depth) * 255
+        rgb_img[:,:,2] = img_out.data * b_scale / 2**(bit_depth) * 255
+        rgb_img[:,:,3] = 255
+
+    ###
+    #   Write image
+    #
     new_name = 'shift_'+os.path.basename(fname).split('.')[0]
     if out_format in [".tiff", ".TIFF"]:
-        imsave(os.path.join(path_out, 'cut', new_name)+'.tiff', img_out.data)
+        if mkRGB:
+            imsave(
+                os.path.join(path_out, 'cut', new_name)+'.tiff',
+                rgb_img,
+                )
+        else:
+            imsave(
+                os.path.join(path_out, 'cut', new_name)+'.tiff',
+                img_out.data,
+                )
     elif out_format in [".jpg", ".jpeg", ".JPG", ".JPEG"]:
-        imsave(os.path.join(path_out, 'cut', new_name)+'.jpg', img_out.data)
+        if mkRGB:
+            imsave(
+                os.path.join(path_out, 'cut', new_name)+'.jpg',
+                rgb_img[:,:,0:3],
+                )
+        else:
+            imsave(
+                os.path.join(path_out, 'cut', new_name)+'.jpg',
+                img_out.data,
+                )
     elif out_format in [".FIT",".fit",".FITS",".fits"]:
         img_out.write(out_path / fname, overwrite=True)
     else:
         print('Error: Output format not known :-(')
 
+
+    #   Add image to image list
+    img_list.append(rgb_img[:,:,0:3])
+
 sys.stdout.write("\n")
+
+###
+#   Write video
+#
+if mk_video:
+    #   Write status to console
+    sys.stdout.write("\rWrite video...")
+    sys.stdout.write("\n")
+
+    aux.write_video(
+        video_name+'.mp4',
+        #'test_Halpha.mpeg',
+        #'test_Halpha.mkv',
+        #'test_Halpha.webm',
+        #'test_Halpha.avi',
+        #'test_Halpha.divx',
+        #'test_Halpha.vp09',
+        img_list,
+        video_annotation,
+        fps,
+        depth=8,
+        )
+
+
 
 
 

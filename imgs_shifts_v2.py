@@ -248,7 +248,7 @@ for i in range(0,nfiles):
             )
 
         #   Actual image cutting
-        img_i = im[i][ys-ys_cut:ye-ye_cut, xs-xs_cut:xe-xe_cut]
+        img_i = im[i][ys+ys_cut:ye-ye_cut, xs+xs_cut:xe-xe_cut]
 
     elif mode == 'extend':
         #   Define larger image array
