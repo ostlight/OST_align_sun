@@ -279,7 +279,7 @@ post_path = Path(Path(path_out) / 'postpro')
 post_path.mkdir(exist_ok=True)
 
 #   Create temporary directory
-temp_dir = tempfile.TemporaryDirectory()
+temp_dir = tempfile.TemporaryDirectory(dir="tmp")
 
 #   Get file collection
 sys.stdout.write("\rRead images...\n")
