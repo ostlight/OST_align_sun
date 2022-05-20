@@ -623,10 +623,17 @@ def write_video(name, frame_list, annotations, fps, depth=8):
     #   Define the codec and create VideoWriter object
     #fourcc = VideoWriter_fourcc('D', 'I', 'V', 'X')
     #fourcc = VideoWriter_fourcc('v', 'p', '0', '9')
+    #fourcc = VideoWriter_fourcc('V', 'P', '0', '9')
+    fourcc = VideoWriter_fourcc('V', 'P', '9', '0')
     #fourcc = VideoWriter_fourcc('v', 'p', '0', '8')
+    #fourcc = VideoWriter_fourcc('V', 'P', '8', '0')
     #fourcc = VideoWriter_fourcc('X', '2', '6', '4')
-    fourcc = VideoWriter_fourcc('m', 'p', '4', 'v')
+    #fourcc = VideoWriter_fourcc('m', 'p', '4', 'v')
     #fourcc = VideoWriter_fourcc(*'MPEG')
+    #fourcc = VideoWriter_fourcc(*'avc1')
+    #fourcc = VideoWriter_fourcc(*'H264')
+    #fourcc = VideoWriter_fourcc(*'X264')
+    #fourcc = 0x00000021
     out = VideoWriter(name, fourcc, fps, (frame_width, frame_height))
 
     #   Define font for annotations.
