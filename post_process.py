@@ -10,26 +10,103 @@
 ############################################################################
 
 #   Path to the images
-path_in  = 'out_2022-05-05-1441_7-1-CapObj/cut/'
+#path_in  = 'out_2022-05-05-1441_7-1-CapObj/cut/'
+#path_in  = '2022-05-05-1450_7-1-CapObj/cut/'
+#path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
+#path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
+#path_in  = 'out_2022-05-05-1506_9-1-CapObj/cut/'
+path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
+#path_in  = 'out_multi/cut/'
 
 #   Output directory
-path_out = 'out_2022-05-05-1441_7-1-CapObj/'
+# path_out = 'out_2022-05-05-1441_7-1-CapObj/'
+# path_out = 'out_2022-05-05-1450_7-1-CapObj/'
+#path_out = '2022-05-05-1456_5-1-CapObj/'
+#path_out = 'out_2022-05-05-1456_5-1-CapObj/'
+#path_out = 'out_2022-05-05-1506_9-1-CapObj/'
+path_out = 'out_2022-05-05-1515_0-1-CapObj/'
+#path_out = 'out_multi/'
 
 #   Allowed input file formats
 #formats = [".jpg", ".jpeg", ".JPG", ".JPEG"]
 formats = [".FIT",".fit",".FITS",".fits"]
 
 #   Image output format
-out_format = '.jpg'
+#out_format = '.jpg'
+out_format = '.tiff'
 
+# 2022-05-05-1441_7-1-CapObj
 #   Upper edge
-ys_cut = 280
+#ys_cut = 280
 #   Lower edge
-ye_cut = 280
+#ye_cut = 280
 #   Left edge
-xs_cut = 420
+#xs_cut = 420
 #   Right edge
-xe_cut = 550
+#xe_cut = 550
+
+# 2022-05-05-1450_7-1-CapObj
+#   Upper edge
+#ys_cut = 290
+#   Lower edge
+#ye_cut = 270
+#   Left edge
+#xs_cut = 350
+#   Right edge
+#xe_cut = 650
+
+# 2022-05-05-1456_5-1-CapObj
+#   Upper edge
+#ys_cut = 250
+#   Lower edge
+#ye_cut = 260
+#   Left edge
+#xs_cut = 210
+#   Right edge
+#xe_cut = 670
+#   Upper edge
+#ys_cut = 950
+#ys_cut = 1000
+#   Lower edge
+#ye_cut = 310
+#ye_cut = 330
+#   Left edge
+#xs_cut = 330
+#xs_cut = 390
+#   Right edge
+#xe_cut = 790
+#xe_cut = 850
+
+# 2022-05-05-1506_9-1-CapObj
+#   Upper edge
+#ys_cut = 305
+#   Lower edge
+#ye_cut = 325
+#   Left edge
+#xs_cut = 235
+#   Right edge
+#xe_cut = 850
+
+# 2022-05-05-1515_0-1-CapObj
+#   Upper edge
+ys_cut = 290
+#   Lower edge
+ye_cut = 320
+#   Left edge
+xs_cut = 165
+#   Right edge
+xe_cut = 910
+
+# out_multi
+#   Upper edge
+#ys_cut = 280
+#   Lower edge
+#ye_cut = 280
+#   Left edge
+#xs_cut = 275
+#   Right edge
+#xe_cut = 560
+
 
 ###
 #   Make RGB from Gray scale? (only for not FITS file formats)
@@ -78,10 +155,11 @@ upper_percentile = 98.
 upper_percentile = 100.
 #   Lower percentile for contrast stretching
 lower_percentile = 2.
-lower_percentile = 0.
+#lower_percentile = 0.
 
 #   Image normalization with ImageMagick
 norm_image_magick = True
+#norm_image_magick = False
 
 #   Define parameters for postprocessing/sharpening
 #   (multiple "layers" are possible)
@@ -108,10 +186,20 @@ norm_image_magick = True
 #   Usage: [radius, amount, bi_fraction, bi_range, denoise, luminance_only]
 
 #   Example:
+#postprocess_layers = [
+#    [1.9, 6., 0.5, 20, 0.8, False,],
+#    [2.4, 6., 0.35, 20, 0.72, False],
+#    [3.9, 2.0, 0.35, 20, 0.72, False],
+#    ]
+#postprocess_layers = [
+    #[1.9, 4., 0.5, 20, 0.8, False,],
+    #[2.4, 4., 0.35, 20, 0.72, False],
+    #[3.9, 1.2, 0.35, 20, 0.72, False],
+#    ]
 postprocess_layers = [
-    [1.9, 6., 0.5, 20, 0.8, False,],
-    [2.4, 6., 0.35, 20, 0.72, False],
-    [3.9, 2.0, 0.35, 20, 0.72, False],
+    [1.9, 12., 0.5, 20, 0.8, False,],
+    [2.4, 12., 0.35, 20, 0.72, False],
+    [3.9, 4., 0.35, 20, 0.72, False],
     ]
 
 ############################################################################
@@ -135,6 +223,9 @@ from astropy.nddata import CCDData
 
 import warnings
 warnings.filterwarnings('ignore')
+
+from astropy import log
+log.setLevel('ERROR')
 
 from skimage import data
 from skimage.io import imsave
@@ -281,7 +372,7 @@ for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
         rgb_img[:,:,2] = img_out.data * b_scale / 2**(bit_depth) * 255
         rgb_img[:,:,3] = 255
 
-        if False:
+        if False:        #   Tests...
             plow, pup = np.percentile(
                 rgb_img[:,:,0:3],
                 #(2, 99),
@@ -329,7 +420,7 @@ for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
     #   Image normalizatiom by means of ImageMagick
     if norm_image_magick:
         command = ('convert -normalize '+os.path.join(path_out, 'postpro', new_name)+out_format+' '+os.path.join(path_out, 'postpro', new_name)+out_format)
-        print(command)
+        #print(command)
         subprocess.run(
         [command],
         shell=True,

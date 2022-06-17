@@ -12,23 +12,16 @@
 ############################################################################
 
 #   Path to the images
-#path_in  = '2022-05-05-1439_9-1-CapObj/2022-05-05-1439_9-1-CapObj/'
-#path_in  = '2022-05-05-1439_9-1-CapObj/test/'
-#path_in  = '2022-05-05-1439_9-1-CapObj/test_2/'
-#path_in  = '2022-05-05-1441_7-1-CapObj/2022-05-05-1441_7-1-CapObj/'
-#path_in  = '2022-05-05-1441_7-1-CapObj/test/'
-#path_in  = '2022-05-05-1450_7-1-CapObj/2022-05-05-1450_7-1-CapObj/'
-#path_in  = '2022-05-05-1456_5-1-CapObj/2022-05-05-1456_5-1-CapObj/'
-#path_in  = '2022-05-05-1506_9-1-CapObj/2022-05-05-1506_9-1-CapObj/'
-path_in  = '2022-05-05-1515_0-1-CapObj/2022-05-05-1515_0-1-CapObj/'
+path_in  = [
+    '2022-05-05-1441_7-1-CapObj/2022-05-05-1441_7-1-CapObj/',
+    '2022-05-05-1450_7-1-CapObj/2022-05-05-1450_7-1-CapObj/',
+    '2022-05-05-1456_5-1-CapObj/2022-05-05-1456_5-1-CapObj/',
+    '2022-05-05-1506_9-1-CapObj/2022-05-05-1506_9-1-CapObj/',
+    '2022-05-05-1515_0-1-CapObj/2022-05-05-1515_0-1-CapObj/'
+    ]
 
 #   Output directory
-#path_out = 'out_Halpha/'
-#path_out = 'out_2022-05-05-1441_7-1-CapObj/'
-#path_out = 'out_2022-05-05-1450_7-1-CapObj/'
-#path_out = 'out_2022-05-05-1456_5-1-CapObj/'
-#path_out = 'out_2022-05-05-1506_9-1-CapObj'
-path_out = 'out_2022-05-05-1515_0-1-CapObj'
+path_out = 'out_multi/'
 
 #   Allowed input file formats
 #formats = [".tiff", ".TIFF"]
@@ -149,7 +142,9 @@ import aux
 
 #   Check directories
 sys.stdout.write("\rCheck directories...\n")
-path_in  = checks.check_pathlib_Path(path_in)
+path_in_check = []
+for path in path_in:
+    path_in_check.append(checks.check_pathlib_Path(path))
 checks.check_out(path_out)
 
 #   Path to the trimmed images
@@ -157,11 +152,15 @@ trim_path = Path(Path(path_out) / 'cut')
 trim_path.mkdir(exist_ok=True)
 
 #   Create temporary directory
-temp_dir = tempfile.TemporaryDirectory(dir="tmp")
+temp_dir_in = tempfile.TemporaryDirectory(dir="tmp")
+temp_dir    = tempfile.TemporaryDirectory(dir="tmp")
+
+#   Create links to all files in a temporary directory
+aux.make_symbolic_links(path_in_check, temp_dir_in)
 
 #   Get file collection
 sys.stdout.write("\rRead images...\n")
-ifc = ccdp.ImageFileCollection(path_in)
+ifc = ccdp.ImageFileCollection(temp_dir_in.name)
 
 #   Apply filter to the image collection
 #   -> This is necessary so that the path to the image directory is added

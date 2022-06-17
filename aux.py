@@ -22,6 +22,40 @@ from cv2 import CV_32F, Laplacian, VideoWriter_fourcc, VideoWriter, \
 ####                        Routines & definitions                      ####
 ############################################################################
 
+def make_symbolic_links(path_list, temp_dir):
+    '''
+        Make symbolic links
+
+        Parameters
+        ----------
+        path_list           : `list` of `string`s
+            List with paths to files
+
+        temp_dir            : `tempfile.TemporaryDirectory`
+            Temporary directory to store the symbolic links
+    '''
+    #   Set current working directory
+    pwd = os.getcwd()
+
+    #   Loop over directories
+    for path in path_list:
+        #   Get file list
+        files = os.listdir(path)
+        #   Loop over files
+        for fil in files:
+            if os.path.isfile(os.path.join(path, fil)):
+                #   Check if a file of the same name already exist in the
+                #   temp directory
+                if os.path.isfile(os.path.join(temp_dir.name, fil)):
+                    fil_new = random_string_generator(5)+'_'+fil
+                else:
+                    fil_new = fil
+
+                #   Fill temp directory with file links
+                os.symlink(
+                    os.path.join(pwd, path, fil),
+                    os.path.join(temp_dir.name, fil_new),
+                    )
 
 def mkfilelist(path, formats=[".FIT",".fit",".FITS",".fits"], addpath=False,
                sort=False):
@@ -658,8 +692,8 @@ def write_video(name, frame_list, annotations, fps, depth=8):
             rgb_frame = np.stack((frame_8b,) * 3, -1)
         else:
             rgb_frame = np.copy(np.array(frame_8b))
-            rgb_frame[:,:,0] = frame_8b[:,:,2]
-            rgb_frame[:,:,2] = frame_8b[:,:,0]
+            # rgb_frame[:,:,0] = frame_8b[:,:,2]
+            # rgb_frame[:,:,2] = frame_8b[:,:,0]
 
         putText(
             rgb_frame,
