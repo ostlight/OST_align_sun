@@ -9,14 +9,19 @@
 ####           Configuration: modify the file in this section           ####
 ############################################################################
 
+###
+#   Paths and formats definitions
+#
+
 #   Path to the images
 #path_in  = 'out_2022-05-05-1441_7-1-CapObj/cut/'
 #path_in  = '2022-05-05-1450_7-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1506_9-1-CapObj/cut/'
-path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
+#path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
 #path_in  = 'out_multi/cut/'
+path_in = 'test_ranking/'
 
 #   Output directory
 # path_out = 'out_2022-05-05-1441_7-1-CapObj/'
@@ -24,8 +29,9 @@ path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
 #path_out = '2022-05-05-1456_5-1-CapObj/'
 #path_out = 'out_2022-05-05-1456_5-1-CapObj/'
 #path_out = 'out_2022-05-05-1506_9-1-CapObj/'
-path_out = 'out_2022-05-05-1515_0-1-CapObj/'
+#path_out = 'out_2022-05-05-1515_0-1-CapObj/'
 #path_out = 'out_multi/'
+path_out = 'out_test_ranking/'
 
 #   Allowed input file formats
 #formats = [".jpg", ".jpeg", ".JPG", ".JPEG"]
@@ -35,15 +41,19 @@ formats = [".FIT",".fit",".FITS",".fits"]
 #out_format = '.jpg'
 out_format = '.tiff'
 
+
+###
+#   Trim images
+#
 # 2022-05-05-1441_7-1-CapObj
 #   Upper edge
-#ys_cut = 280
+ys_cut = 280
 #   Lower edge
-#ye_cut = 280
+ye_cut = 280
 #   Left edge
-#xs_cut = 420
+xs_cut = 420
 #   Right edge
-#xe_cut = 550
+xe_cut = 550
 
 # 2022-05-05-1450_7-1-CapObj
 #   Upper edge
@@ -89,13 +99,13 @@ out_format = '.tiff'
 
 # 2022-05-05-1515_0-1-CapObj
 #   Upper edge
-ys_cut = 290
+#ys_cut = 290
 #   Lower edge
-ye_cut = 320
+#ye_cut = 320
 #   Left edge
-xs_cut = 165
+#xs_cut = 165
 #   Right edge
-xe_cut = 910
+#xe_cut = 910
 
 # out_multi
 #   Upper edge
@@ -106,6 +116,57 @@ xe_cut = 910
 #xs_cut = 275
 #   Right edge
 #xe_cut = 560
+
+
+###
+#   Find the best images by means of Planetary System Stacker
+#
+best_img = False
+best_img = True
+
+#   Number of best images to br returned
+nimgs  = 1
+
+#   The ''nimgs'' need to be in an interval of size ''window''
+window = 1
+
+#   Step size to be evaluated, e.g., ''nimgs=1'' and ''step=20'' means:
+#   select the best image out of every 20 images
+step   = 10
+
+
+###
+#   Stack best images
+#
+stack = False
+stack = True
+
+#   % of images to be stacked
+stack_percent = 20
+
+#   Interval to stack
+#stack_interval = 100
+stack_interval = 10
+
+#   Drizzling: Interpolate input frames by a drizzle factor
+#              Possible values: 1.5x, 2x, 3x, Off
+#              A "drizzle" times larger image will be returned.
+#              To account for this the images trim values from
+#              above will be scaled with "drizzle"
+drizzle = 'Off'
+#drizzle = '1.5x'
+
+#   The following parameters usually don't need adjustment
+#   Noise level (add Gaussian blur) - Range: 0-11
+noise = 5
+#   Alignment point box width (pixels) for multipoint alignment
+box_width = 52
+#   Alignment point search width (pixels)
+search_width = 20
+#   Minimum structure for multipoint alignment
+min_struct = 0.07
+#   Minimum brightness for multipoint alignment
+min_bright = 50
 
 
 ###
@@ -211,7 +272,7 @@ import os
 
 import subprocess
 
-#import tempfile
+import tempfile
 
 from pathlib import Path
 
@@ -234,6 +295,17 @@ from skimage import exposure
 from skimage.morphology import disk
 from skimage.filters import rank
 
+import planetary_system_stacker as pss
+sys.path.append(pss.__path__[0])
+from configuration import Configuration
+from frames import Frames
+from rank_frames import RankFrames
+#from planetary_system_stacker.planetary_system_stacker import (
+    #Configuration,
+    #Frames,
+    #RankFrames,
+    #)
+
 import checks
 import aux
 
@@ -254,13 +326,19 @@ post_path.mkdir(exist_ok=True)
 sys.stdout.write("\rRead images...\n")
 ifc = ccdp.ImageFileCollection(path_in)
 
+#   Get current directory
+pwd = os.path.dirname(os.path.abspath(__file__))
+
 #   Apply filter to the image collection
 #   -> This is necessary so that the path to the image directory is added
 #      to the file names. This is required for `calculate_image_shifts`.
 ifc = ifc.filter(SIMPLE=True)
 
+#   File list
+files = ifc.files
+
 #   Number of files
-nfiles = len(ifc.files)
+nfiles = len(files)
 
 #   Get reference image
 ref_img_name = ifc.files[0]
@@ -277,8 +355,142 @@ else:
     print('Bit depth set to 16')
     bit_depth = 16
 
+
 ###
-#   Cut pictures and add them
+#   Stack best images
+#
+if stack:
+    #   Create temporary directory
+    temp_dir = tempfile.TemporaryDirectory()
+    temp_dir_stack = tempfile.TemporaryDirectory()
+
+    #   Prepare a list for stacked images
+    #path_stacked_imgs = []
+
+    j = 1
+    for i, img_path in enumerate(files):
+
+        #   Get image base name
+        basename = aux.get_basename(img_path)
+
+        #   Compose file name
+        filename = basename+'.fit'
+
+        #   Create a link to the image in the temporary directory
+        os.symlink(pwd+'/'+img_path, temp_dir.name+'/'+filename)
+
+        #   If set is reach, find best images
+        if ((i != 0 and i%stack_interval == 0) or
+            (i+1 == len(files) and i%stack_interval != 0)):
+
+            #   Construct command for the Planetary System Stacker
+            #command = "python3 planetary_system_stacker.py " \
+            #+ " --out_format tiff -b 4 -s "+str(int(stack_percent)) \
+                    #+ " -a 52 -w 20 --normalize_bright --drizzle 1.5x"
+            command = "PlanetarySystemStacker " \
+                    + temp_dir.name \
+                    + " --out_format fits -b 4 -s "+str(int(stack_percent)) \
+                    + " -a "+str(box_width)+" -w "+str(search_width) \
+                    + " --normalize_bright" \
+                    + " --align_min_struct "+str(min_struct) \
+                    + " --align_min_bright "+str(min_bright) \
+                    + " --noise "+str(noise)+" --drizzle "+str(drizzle)
+            #command =  "PlanetarySystemStacker "
+            #command += temp_dir.name
+            #command += " --out_format fits -b 4 -s "+str(int(stack_percent))
+            #command += " -a 52 -w 20 --normalize_bright"
+
+            #   Run Planetary System Stacker command
+            subprocess.run([command], shell=True, text=True)
+
+            #
+            #path_stacked_imgs.append(temp_dir.name+'_pss.fits')
+
+            #   Create a link to the stack images in a temporary directory
+            os.symlink(
+                temp_dir.name+'_pss.fits',
+                temp_dir_stack.name+'/'+str(j)+"_stack.fit"
+                )
+            j += 1
+
+            #   Create new temporary directory
+            temp_dir = tempfile.TemporaryDirectory()
+
+    #   Create new file collection
+    #ifc = ccdp.ImageFileCollection(filenames=path_stacked_imgs)
+    ifc = ccdp.ImageFileCollection(temp_dir_stack.name)
+
+    #   Number of files
+    nfiles = len(ifc.files)
+
+    #   Scale trimming indices to account for drizzling
+    if drizzle != 'Off':
+        drizzle = float(drizzle[:-1])
+        ys_cut = int(ys_cut*drizzle)
+        ye_cut = int(ye_cut*drizzle)
+        xs_cut = int(xs_cut*drizzle)
+        xe_cut = int(xe_cut*drizzle)
+
+
+###
+#   Get the best images, using the Planetary System Stacker
+#
+if best_img and not stack:
+    #   Create temporary directory
+    temp_dir = tempfile.TemporaryDirectory()
+
+    #   Load configuration for the Planetary System Stacker
+    configuration = Configuration()
+    configuration.initialize_configuration(read_from_file=False)
+
+    #   Prepare a list for images in ''step''
+    path_list = []
+
+    for i, img_path in enumerate(files):
+        #   Add image to the list
+        path_list.append(img_path)
+
+        #   If set is reach, find best images
+        if (i != 0 and i%step == 0) or (i+1 == len(files) and i%step != 0):
+            #   Get images as a frames collection
+            frames = Frames(configuration, path_list, type='image')
+
+            #   Rank images
+            ranked_frames = RankFrames(frames, configuration)
+            ranked_frames.frame_score()
+
+            #   Identify best images
+            best_indices, _, _ = ranked_frames.find_best_frames(nimgs, window)
+
+            #print ("\nIndices of the best frames "+str(best_indices)+" in step number "
+                #+str(int(i/step)))
+
+            for indice in best_indices:
+                #   Path to best image
+                path_best = path_list[indice]
+
+                #   Get image base name
+                basename = aux.get_basename(path_best)
+
+                #   Compose file name
+                filename = basename+'.fit'
+
+                #   Create a link to the best images in the temporary directory
+                os.symlink(pwd+'/'+path_best, temp_dir.name+'/'+filename)
+
+                #   Reset image list
+                path_list = []
+
+
+    #   Create new file collection
+    ifc = ccdp.ImageFileCollection(temp_dir.name)
+
+    #   Number of files
+    nfiles = len(ifc.files)
+
+
+###
+#   Cut pictures and postprocess them
 #
 #   Loop over and trim all images
 i = 0

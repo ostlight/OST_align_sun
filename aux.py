@@ -870,3 +870,29 @@ def post_process(image, layers):
             ).astype(np.uint16)
     else:
         return components_accumulated.clip(min=0., max=65535.).astype(np.uint16)
+
+
+def get_basename(path):
+    '''
+        Determine basename without ending from a file path. Accounts for
+        multiple dots in the file name.
+
+        Parameters
+        ----------
+        path            : `string` or `pathlib.Path` object
+            Path to the file
+
+        Returns
+        -------
+        basename        : `string`
+            Basename without ending
+    '''
+    name_parts = str(path).split('/')[-1].split('.')[0:-1]
+    if len(name_parts) == 1:
+        basename = name_parts[0]
+    else:
+        basename = name_parts[0]
+        for part in name_parts[1:]:
+            basename = basename+'.'+part
+
+    return basename
