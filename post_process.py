@@ -15,8 +15,8 @@
 #path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1506_9-1-CapObj/cut/'
-path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
-#path_in  = 'out_multi/cut/'
+#path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
+path_in  = 'out_multi/cut/'
 
 #   Output directory
 # path_out = 'out_2022-05-05-1441_7-1-CapObj/'
@@ -24,8 +24,8 @@ path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
 #path_out = '2022-05-05-1456_5-1-CapObj/'
 #path_out = 'out_2022-05-05-1456_5-1-CapObj/'
 #path_out = 'out_2022-05-05-1506_9-1-CapObj/'
-path_out = 'out_2022-05-05-1515_0-1-CapObj/'
-#path_out = 'out_multi/'
+#path_out = 'out_2022-05-05-1515_0-1-CapObj/'
+path_out = 'out_multi/'
 
 #   Allowed input file formats
 #formats = [".jpg", ".jpeg", ".JPG", ".JPEG"]
@@ -89,23 +89,27 @@ out_format = '.tiff'
 
 # 2022-05-05-1515_0-1-CapObj
 #   Upper edge
-ys_cut = 290
+#ys_cut = 290
 #   Lower edge
-ye_cut = 320
+#ye_cut = 320
 #   Left edge
-xs_cut = 165
+#xs_cut = 165
 #   Right edge
-xe_cut = 910
+#xe_cut = 910
 
 # out_multi
 #   Upper edge
 #ys_cut = 280
+ys_cut = 270
 #   Lower edge
 #ye_cut = 280
+ye_cut = 280
 #   Left edge
 #xs_cut = 275
+xs_cut = 160
 #   Right edge
 #xe_cut = 560
+xe_cut = 560
 
 
 ###
