@@ -15,20 +15,20 @@
 #path_in  = '2022-05-05-1439_9-1-CapObj/2022-05-05-1439_9-1-CapObj/'
 #path_in  = '2022-05-05-1439_9-1-CapObj/test/'
 #path_in  = '2022-05-05-1439_9-1-CapObj/test_2/'
-#path_in  = '2022-05-05-1441_7-1-CapObj/2022-05-05-1441_7-1-CapObj/'
+path_in  = '2022-05-05-1441_7-1-CapObj/2022-05-05-1441_7-1-CapObj/'
 #path_in  = '2022-05-05-1441_7-1-CapObj/test/'
 #path_in  = '2022-05-05-1450_7-1-CapObj/2022-05-05-1450_7-1-CapObj/'
 #path_in  = '2022-05-05-1456_5-1-CapObj/2022-05-05-1456_5-1-CapObj/'
 #path_in  = '2022-05-05-1506_9-1-CapObj/2022-05-05-1506_9-1-CapObj/'
-path_in  = '2022-05-05-1515_0-1-CapObj/2022-05-05-1515_0-1-CapObj/'
+#path_in  = '2022-05-05-1515_0-1-CapObj/2022-05-05-1515_0-1-CapObj/'
 
 #   Output directory
 #path_out = 'out_Halpha/'
-#path_out = 'out_2022-05-05-1441_7-1-CapObj/'
+path_out = 'out_2022-05-05-1441_7-1-CapObj/'
 #path_out = 'out_2022-05-05-1450_7-1-CapObj/'
 #path_out = 'out_2022-05-05-1456_5-1-CapObj/'
 #path_out = 'out_2022-05-05-1506_9-1-CapObj'
-path_out = 'out_2022-05-05-1515_0-1-CapObj'
+#path_out = 'out_2022-05-05-1515_0-1-CapObj'
 
 #   Allowed input file formats
 #formats = [".tiff", ".TIFF"]
