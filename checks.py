@@ -5,7 +5,7 @@
 
 import os
 
-from pathlib import Path
+from pathlib import Path, PurePath
 
 ############################################################################
 ####                        Routines & definitions                      ####
@@ -37,6 +37,8 @@ def check_pathlib_Path(path):
     if isinstance(path, str):
         return Path(path)
     elif isinstance(path, Path):
+        return path
+    elif isinstance(path, PurePath):
         return path
     else:
         raise RuntimeError('The provided path ({}) is neither a String nor'

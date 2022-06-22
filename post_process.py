@@ -20,8 +20,8 @@
 #path_in  = 'out_2022-05-05-1456_5-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1506_9-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
-path_in  = 'out_multi/cut/'
-#path_in = 'test_ranking/'
+#path_in  = 'out_multi/cut/'
+path_in = 'test_ranking/'
 
 #   Output directory
 # path_out = 'out_2022-05-05-1441_7-1-CapObj/'
@@ -30,8 +30,8 @@ path_in  = 'out_multi/cut/'
 #path_out = 'out_2022-05-05-1456_5-1-CapObj/'
 #path_out = 'out_2022-05-05-1506_9-1-CapObj/'
 #path_out = 'out_2022-05-05-1515_0-1-CapObj/'
-path_out = 'out_multi/'
-#path_out = 'out_test_ranking/'
+#path_out = 'out_multi/'
+path_out = 'out_test_ranking/'
 
 #   Allowed input file formats
 #formats = [".jpg", ".jpeg", ".JPG", ".JPEG"]
@@ -126,7 +126,7 @@ xe_cut = 560
 #   Find the best images by means of Planetary System Stacker
 #
 best_img = False
-#best_img = True
+best_img = True
 
 #   Number of best images to br returned
 nimgs  = 1
@@ -144,7 +144,7 @@ step   = 20
 #   Stack best images
 #
 stack = False
-stack = True
+#stack = True
 
 #   % of images to be stacked
 stack_percent = 20
@@ -468,6 +468,8 @@ if best_img and not stack:
         if (i != 0 and i%step == 0) or (i+1 == len(files) and i%step != 0):
             #   Get images as a frames collection
             frames = Frames(configuration, path_list, type='image')
+            print(dir(frames))
+            print(type(frames))
 
             #   Rank images
             ranked_frames = RankFrames(frames, configuration)
