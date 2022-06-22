@@ -35,7 +35,8 @@ mk_video = True
 # video_name = '2022-05-05-1456_5-1-CapObj_cut_v4'
 # video_name = '2022-05-05-1506_9-1-CapObj_v4'
 # video_name = '2022-05-05-1515_0-1-CapObj_v4'
-video_name = 'multi_v4'
+# video_name = 'multi_v4'
+video_name = 'multi_best_v4'
 #   Video annotation
 video_annotation = ''
 #   Frames per second

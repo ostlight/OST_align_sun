@@ -47,13 +47,13 @@ out_format = '.tiff'
 #
 # 2022-05-05-1441_7-1-CapObj
 #   Upper edge
-ys_cut = 280
+#ys_cut = 280
 #   Lower edge
-ye_cut = 280
+#ye_cut = 280
 #   Left edge
-xs_cut = 420
+#xs_cut = 420
 #   Right edge
-xe_cut = 550
+#xe_cut = 550
 
 # 2022-05-05-1450_7-1-CapObj
 #   Upper edge
@@ -126,7 +126,7 @@ xe_cut = 560
 #   Find the best images by means of Planetary System Stacker
 #
 best_img = False
-best_img = True
+#best_img = True
 
 #   Number of best images to br returned
 nimgs  = 1
@@ -137,6 +137,7 @@ window = 1
 #   Step size to be evaluated, e.g., ''nimgs=1'' and ''step=20'' means:
 #   select the best image out of every 20 images
 step   = 10
+step   = 20
 
 
 ###
@@ -150,7 +151,8 @@ stack_percent = 20
 
 #   Interval to stack
 #stack_interval = 100
-stack_interval = 10
+stack_interval = 40
+#stack_interval = 10
 
 #   Drizzling: Interpolate input frames by a drizzle factor
 #              Possible values: 1.5x, 2x, 3x, Off
@@ -317,6 +319,13 @@ import aux
 ####                               Main                                 ####
 ############################################################################
 
+#   Sanity check: Stacking and best image selection should not be
+#                 selected simultaniously
+if best_img and stack:
+    print("Stacking and best image selection should not be",
+           "selected simultaenously. Choose one!")
+    sys.exit()
+
 #   Check directories
 sys.stdout.write("\rCheck directories...\n")
 path_in  = checks.check_pathlib_Path(path_in)
@@ -405,7 +414,8 @@ if stack:
             #command += " -a 52 -w 20 --normalize_bright"
 
             #   Run Planetary System Stacker command
-            subprocess.run([command], shell=True, text=True)
+            # subprocess.run([command], shell=True, text=True)
+            subprocess.run([command], shell=True)
 
             #
             #path_stacked_imgs.append(temp_dir.name+'_pss.fits')
