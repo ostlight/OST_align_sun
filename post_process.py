@@ -139,6 +139,9 @@ window = 1
 step   = 10
 step   = 20
 
+#   Add last step even if it is < "step"
+ad_last_best = False
+
 
 ###
 #   Stack best images
@@ -151,7 +154,8 @@ stack_percent = 20
 
 #   Interval to stack
 #stack_interval = 100
-stack_interval = 40
+#stack_interval = 40
+stack_interval = 20
 #stack_interval = 10
 
 #   Drizzling: Interpolate input frames by a drizzle factor
@@ -173,6 +177,9 @@ search_width = 20
 min_struct = 0.07
 #   Minimum brightness for multipoint alignment
 min_bright = 50
+#   Add last step even if it is < "stack_interval"
+ad_last_stack = False
+
 
 
 ###
@@ -394,7 +401,7 @@ if stack:
 
         #   If set is reach, find best images
         if ((i != 0 and i%stack_interval == 0) or
-            (i+1 == len(files) and i%stack_interval != 0)):
+            (i+1 == len(files) and i%stack_interval != 0) and ad_last_stack):
 
             #   Construct command for the Planetary System Stacker
             #command = "python3 planetary_system_stacker.py " \
@@ -423,7 +430,7 @@ if stack:
             #   Create a link to the stack images in a temporary directory
             os.symlink(
                 temp_dir.name+'_pss.fits',
-                temp_dir_stack.name+'/'+str(j)+"_stack.fit"
+                temp_dir_stack.name+'/'+str(j).rjust(6, '0')+"_stack.fit"
                 )
             j += 1
 
@@ -465,7 +472,8 @@ if best_img and not stack:
         path_list.append(img_path)
 
         #   If set is reach, find best images
-        if (i != 0 and i%step == 0) or (i+1 == len(files) and i%step != 0):
+        if ((i != 0 and i%step == 0) or
+            (i+1 == len(files) and i%step != 0 and ad_last_best)):
             #   Get images as a frames collection
             frames = Frames(configuration, path_list, type='image')
             print(dir(frames))

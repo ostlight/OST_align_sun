@@ -36,11 +36,14 @@ mk_video = True
 # video_name = '2022-05-05-1506_9-1-CapObj_v4'
 # video_name = '2022-05-05-1515_0-1-CapObj_v4'
 # video_name = 'multi_v4'
-video_name = 'multi_best_v4'
+# video_name = 'multi_best_v4'
+#video_name = 'multi_stack_v4'
+#video_name = 'multi_stack-of-40imgs_20fps_v4'
+video_name = 'multi_stack-of-20imgs_60fps_v4'
 #   Video annotation
 video_annotation = ''
 #   Frames per second
-fps = 20
+#fps = 20
 fps = 60
 #fps = 120
 
@@ -69,7 +72,12 @@ path_in  = checks.check_pathlib_Path(path_in)
 checks.check_out(path_out)
 
 #   Make file list
-fileList, nfiles = aux.mkfilelist(path_in, formats=formats, addpath=True)
+fileList, nfiles = aux.mkfilelist(
+    path_in,
+    formats=formats,
+    addpath=True,
+    sort=True,
+    )
 
 #   Read images
 sys.stdout.write("\rRead images...")
