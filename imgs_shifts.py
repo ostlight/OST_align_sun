@@ -17,6 +17,7 @@ path_in  = '../se_2021_clean_imgs/'
 
 #   Output directory
 path_out = 'out_test'
+path_out = 'out_test_ser'
 
 #   Allowed input file formats
 formats = [".tiff", ".TIFF"]
@@ -60,7 +61,7 @@ ye_cut = 0
 #   Left edge
 xs_cut = 0
 #   Right edge
-xe_cut = 76
+xe_cut = 0
 
 
 ###
@@ -88,7 +89,7 @@ import matplotlib.pyplot as plt
 from skimage import data
 from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
-from skimage.io import (imread, imread_collection, imsave, imshow)
+from skimage.io import imread, imread_collection, imsave, imshow
 
 import checks
 import aux
@@ -237,7 +238,8 @@ for i in range(0,nfiles):
         plt.show()
 
     #   Write image
-    new_name = 'shift_'+os.path.basename(fileList[i])
+    #new_name = 'shift_'+os.path.basename(fileList[i])
+    new_name = os.path.basename(fileList[i])
     imsave(os.path.join(path_out,new_name), img_cut[i])
 
     #new_name = 'shift_'+basename(fileList[i]).split('.')[0]

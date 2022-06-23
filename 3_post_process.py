@@ -140,7 +140,7 @@ step   = 10
 step   = 20
 
 #   Add last step even if it is < "step"
-ad_last_best = False
+add_last_best = False
 
 
 ###
@@ -178,7 +178,7 @@ min_struct = 0.07
 #   Minimum brightness for multipoint alignment
 min_bright = 50
 #   Add last step even if it is < "stack_interval"
-ad_last_stack = False
+add_last_stack = False
 
 
 
@@ -401,7 +401,7 @@ if stack:
 
         #   If set is reach, find best images
         if ((i != 0 and i%stack_interval == 0) or
-            (i+1 == len(files) and i%stack_interval != 0) and ad_last_stack):
+            (i+1 == len(files) and i%stack_interval != 0) and add_last_stack):
 
             #   Construct command for the Planetary System Stacker
             #command = "python3 planetary_system_stacker.py " \
@@ -473,7 +473,7 @@ if best_img and not stack:
 
         #   If set is reach, find best images
         if ((i != 0 and i%step == 0) or
-            (i+1 == len(files) and i%step != 0 and ad_last_best)):
+            (i+1 == len(files) and i%step != 0 and add_last_best)):
             #   Get images as a frames collection
             frames = Frames(configuration, path_list, type='image')
             print(dir(frames))
@@ -607,18 +607,6 @@ for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
         rgb_img[:,:,1] = img_out.data * g_scale / 2**(bit_depth) * 255
         rgb_img[:,:,2] = img_out.data * b_scale / 2**(bit_depth) * 255
         rgb_img[:,:,3] = 255
-
-        if False:        #   Tests...
-            plow, pup = np.percentile(
-                rgb_img[:,:,0:3],
-                #(2, 99),
-                (2, 98),
-                )
-            img_rescale = exposure.rescale_intensity(
-                rgb_img[:,:,0:3],
-                in_range=(plow, pup),
-                )
-            rgb_img[:,:,0:3] = img_rescale
 
 
     ###

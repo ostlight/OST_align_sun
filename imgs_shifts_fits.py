@@ -32,12 +32,12 @@ path_out = 'out_2022-05-05-1441_7-1-CapObj/'
 
 #   Allowed input file formats
 #formats = [".tiff", ".TIFF"]
-#formats = [".FIT",".fit",".FITS",".fits"]
+formats = [".FIT",".fit",".FITS",".fits"]
 
 #   Output formal
 #out_format = ".tiff"
 #out_format = ".jpg"
-out_format = ".fit"
+#out_format = ".fit"
 
 #   Reference image
 ref_id = 0
@@ -135,10 +135,10 @@ log.setLevel('ERROR')
 import warnings
 warnings.filterwarnings('ignore')
 
-from skimage import data
-from skimage.registration import phase_cross_correlation
+#from skimage import data
+#from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
-from skimage.io import imread, imread_collection, imsave, imshow
+#from skimage.io import imread, imread_collection, imsave, imshow
 
 import checks
 import aux

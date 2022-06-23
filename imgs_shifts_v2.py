@@ -12,11 +12,13 @@
 ############################################################################
 
 #   Path to the images
-path_in  = '../se_2021_clean_imgs/'
+#path_in  = '../se_2021_clean_imgs/'
 #path_in  = './examples/'
+path_in = 'out_test_ser/video_imgs/'
 
 #   Output directory
-path_out = 'out_test'
+#path_out = 'out_test'
+path_out = 'out_test_ser'
 
 #   Allowed input file formats
 formats = [".tiff", ".TIFF"]
@@ -44,6 +46,7 @@ mode = 'cut'
 #
 #   Mask image?
 bool_mask = True
+bool_mask = False
 
 #   Points to define the mask -> the area enclosed by the points
 #                                will be masked
@@ -77,7 +80,7 @@ ye_cut = 0
 #   Left edge
 xs_cut = 0
 #   Right edge
-xe_cut = 76
+xe_cut = 0
 
 
 ###
@@ -100,6 +103,8 @@ id_img    = 10
 import sys
 import os
 
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -116,7 +121,13 @@ import aux
 ############################################################################
 
 #   Check if output directory exists
+sys.stdout.write("\rCheck directories...\n")
+path_in  = checks.check_pathlib_Path(path_in)
 checks.check_out(path_out)
+
+#   Path to the trimmed images
+trim_path = Path(Path(path_out) / 'cut')
+trim_path.mkdir(exist_ok=True)
 
 #   Make file list
 sys.stdout.write("\rRead images...\n")
@@ -293,11 +304,12 @@ for i in range(0,nfiles):
         plt.show()
 
     #   Write image
-    new_name = 'shift_'+os.path.basename(fileList[i]).split('.')[0]
+    #new_name = 'shift_'+os.path.basename(fileList[i]).split('.')[0]
+    new_name = os.path.basename(fileList[i]).split('.')[0]
     if out_format in [".tiff", ".TIFF"]:
-        imsave(os.path.join(path_out,new_name)+'.tiff', img_i[:,:,0:4])
+        imsave(trim_path / str(new_name+'.tiff'), img_i[:,:,0:4])
     elif out_format in [".jpg", ".jpeg", ".JPG", ".JPEG"]:
-        imsave(os.path.join(path_out,new_name)+'.jpg', img_i[:,:,0:3])
+        imsave(trim_path / str(new_name+'.jpg'), img_i[:,:,0:3])
     else:
         print('Error: Output format not known :-(')
 
