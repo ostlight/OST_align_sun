@@ -41,8 +41,8 @@ def check_dirs(path_in, path_out):
 
         Parameters
         ----------
-        path_in         : `string`
-            Path to the images
+        path_in         : `list` of `string`
+            Paths to the images
 
         path_out        : `string`
             Path to the directory where to save the trimmed images
@@ -51,17 +51,23 @@ def check_dirs(path_in, path_out):
         -------
         trim_path       : `pathlib.Path` object
             Path to save the modified images
+
+        path_in_check   : `list` of `pathlib.Path` objects
+            Sanitized paths to the input images
+
     '''
     #   Check directories
     sys.stdout.write("\rCheck directories...\n")
-    path_in  = checks.check_pathlib_Path(path_in)
+    path_in_check = []
+    for path in path_in:
+        path_in_check.append(checks.check_pathlib_Path(path))
     checks.check_out(path_out)
 
     #   Path to the trimmed images
     trim_path = Path(Path(path_out) / 'cut')
     trim_path.mkdir(exist_ok=True)
 
-    return trim_path
+    return path_in_check, trim_path
 
 
 def check_bit_depth(data):
@@ -190,30 +196,32 @@ def plot_ref_trim_img(img_ref, img_out):
     ax1 = plt.subplot(1, 2, 1)
     ax2 = plt.subplot(1, 2, 2, sharex=ax1, sharey=ax1)
 
-    ax1.imshow(img_ref[0].astype('uint8'), cmap='gray')
+    #ax1.imshow(img_ref.astype('uint8'), cmap='gray')
+    ax1.imshow(img_ref, cmap='gray')
     ax1.set_axis_off()
     ax1.set_title('Reference image')
 
-    ax2.imshow(img_i.astype('uint8'), cmap='gray')
+    #ax2.imshow(img_out.astype('uint8'), cmap='gray')
+    ax2.imshow(img_out, cmap='gray')
     ax2.set_axis_off()
     ax2.set_title('Offset image')
 
     plt.show()
 
 
-def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
-                          bool_mask=False, mask_points=[[0, 0]],
-                          upper_right=False, lower_right=False,
-                          lower_left=False, bool_heavy=False, offset=0,
-                          ys_cut=0, ye_cut=0, xs_cut=0, xe_cut=0,
-                          plot_mask=False, plot_cut=False, id_img=0):
+def cal_img_shifts_fits(path_in, path_out, formats, out_format, ref_id=0,
+                        mode='cut', bool_mask=False, mask_points=[[0, 0]],
+                        upper_right=False, lower_right=False,
+                        lower_left=False, bool_heavy=False, offset=0,
+                        ys_cut=0, ye_cut=0, xs_cut=0, xe_cut=0,
+                        plot_mask=False, plot_cut=False, id_img=0):
     '''
-        Calculate image shift for "normal" images, e.g., non FITS images
+        Calculate image shift for FITS images
 
         Parameters
         ----------
-        path_in         : `string`
-            Path to the images
+        path_in         : `list` of `string`
+            Paths to the images
 
         path_out        : `string`
             Path to the directory where to save the trimmed images
@@ -227,6 +235,12 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
         ref_id          : `integer`, optional
             ID of the reference image
             Default is ``0``.
+
+        mode            : `string`, optional
+            The images can be either cut to the common field of view or extended
+            to a field of view in which all images fit
+            Possibilities: ``extend`` and ``cut``
+            Default is ``cut``.
 
         bool_mask       : `boolean`, optional
             If ``True`` a image mask is calculated that masks areas, which could
@@ -292,14 +306,22 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
             Default is ``0``.
     '''
     #   Check paths
-    trim_path = check_dirs(path_in, path_out)
+    path_in_check, trim_path = check_dirs(path_in, path_out)
 
     #   Create temporary directory
-    temp_dir = tempfile.TemporaryDirectory(dir="tmp")
+    tmp_dir = Path("./tmp")
+    tmp_dir.mkdir(exist_ok=True)
+    temp_dir = tempfile.TemporaryDirectory(dir=tmp_dir)
+    temp_dir_in = tempfile.TemporaryDirectory()
+
+    #   Create links to all files in a temporary directory
+    aux.make_symbolic_links(path_in_check, temp_dir_in)
 
     #   Get file collection
     sys.stdout.write("\rRead images...\n")
-    ifc = ccdp.ImageFileCollection(path_in)
+    ifc = ccdp.ImageFileCollection(temp_dir_in.name)
+    if len(ifc.files) == 0:
+        raise RuntimeError('No files found -> EXIT')
 
     #   Apply filter to the image collection
     #   -> This is necessary so that the path to the image directory is added
@@ -434,7 +456,7 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
 
         #   Plot reference and offset image
         if i == id_img and plot_cut and ref_id <= id_img:
-            plot_ref_trim_img(img_ref, img_out)
+            plot_ref_trim_img(img_ref, img_out.data)
 
         i += 1
 
@@ -458,6 +480,9 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
         else:
             print('Error: Output format not known :-(')
 
+    ##   Remove temporary directory
+    #tmp_dir.rmdir()
+
     sys.stdout.write("\n")
 
 
@@ -472,8 +497,8 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
 
         Parameters
         ----------
-        path_in         : `string`
-            Path to the images
+        path_in         : `list` of `string`
+            Paths to the images
 
         path_out        : `string`
             Path to the directory where to save the trimmed images
@@ -558,16 +583,22 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
             Default is ``0``.
     '''
     #   Check paths
-    trim_path = check_dirs(path_in, path_out)
+    path_in_check, trim_path = check_dirs(path_in, path_out)
+
+    #   Create links to all files in a temporary directory
+    temp_dir_in = tempfile.TemporaryDirectory()
+    aux.make_symbolic_links(path_in_check, temp_dir_in)
 
     #   Make file list
     sys.stdout.write("\rRead images...\n")
     fileList, nfiles = aux.mkfilelist(
-        path_in,
+        temp_dir_in.name,
         formats=formats,
         addpath=True,
         sort=True,
         )
+    if len(fileList) == 0:
+        raise RuntimeError('No files found -> EXIT')
 
     #   Read images
     im = imread_collection(fileList)

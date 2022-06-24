@@ -12,19 +12,25 @@
 ############################################################################
 
 #   Path to the images
+#   The path can be a given as a string to a single directory or a list of
+#   strings to multiple directories.
 #path_in  = '../se_2021_clean_imgs/'
 #path_in  = './examples/'
 path_in = 'out_test_ser/video_imgs/'
+path_in = 'test_ranking/'
 
 #   Output directory
 #path_out = 'out_test'
 path_out = 'out_test_ser'
+path_out = 'out_test_ranking/'
 
 #   Allowed input file formats
 formats = [".tiff", ".TIFF"]
+formats = [".fit", ".fits"]
 
 #   Output format
 out_format = ".tiff"
+#out_format = ".fit"
 
 #   ID of the reference image
 ref_id = 0
@@ -94,7 +100,7 @@ plot_mask = False
 
 #   Plot cut images
 plot_cut  = True
-#plot_cut  = False
+plot_cut  = False
 #   ID of the image to plot
 id_img    = 10
 
@@ -127,6 +133,29 @@ import registration
 ############################################################################
 
 if __name__ == '__main__':
+    #   Check if command line arguments are given
+    #   -> Used to overwrite path and format variables from above
+    if len(sys.argv) == 5:
+        path_in = sys.argv[1]
+        path_out = sys.argv[2]
+        formats = sys.argv[3]
+        out_format = sys.argv[4]
+
+    #   Check if the path/s to the images are given as a string or list
+    #   In case of a string replace it with a list
+    if isinstance(path_in, str):
+        path_in = [path_in]
+    elif not isinstance(path_in, list):
+        raise TypeError('The path to the images ({}) is neither a list nor a'
+                        'string => Exit'.format(path_in))
+    #   The same check for the input formats
+    if isinstance(formats, str):
+        formats = [formats]
+    elif not isinstance(formats, list):
+        raise TypeError('The input formats ({}) are specified neither as a list '
+                        'nor as a string => Exit'.format(formats))
+
+    #   Calculate and apply shifts
     if '.fit' in formats or '.fits' in formats:
         registration.cal_img_shifts_fits(
             path_in,
@@ -134,6 +163,7 @@ if __name__ == '__main__':
             formats,
             out_format,
             ref_id=ref_id,
+            mode=mode,
             bool_mask=bool_mask,
             mask_points=mask_points,
             upper_right=upper_right,
