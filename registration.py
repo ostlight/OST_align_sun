@@ -605,9 +605,14 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
 
     #   Image shape
     image_shape = im[0].shape
+    if len(image_shape) > 2:
+        color = True
+    else:
+        color = False
     ny = image_shape[0]
     nx = image_shape[1]
-    nz = image_shape[2]
+    if color:
+        nz = image_shape[2]
 
     #   Bit depth
     bit_depth = check_bit_depth(im[0].dtype)
@@ -643,17 +648,31 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
 
         #   "Normalize" image & calculate heavyside function for the image
         if bool_heavy:
-            reff = np.heaviside(
-                im[ref_id][:,:,0]/2**(bit_depth)-offset/2**(bit_depth),
-                0.03,
-                )
-            test = np.heaviside(
-                im[i][:,:,0]/2**(bit_depth)-offset/2**(bit_depth),
-                0.03,
-                )
+            if color:
+                reff = np.heaviside(
+                    im[ref_id][:,:,0]/2**(bit_depth)-offset/2**(bit_depth),
+                    0.03,
+                    )
+                test = np.heaviside(
+                    im[i][:,:,0]/2**(bit_depth)-offset/2**(bit_depth),
+                    0.03,
+                    )
+            else:
+                reff = np.heaviside(
+                    im[ref_id]/2**(bit_depth)-offset/2**(bit_depth),
+                    0.03,
+                    )
+                test = np.heaviside(
+                    im[i]/2**(bit_depth)-offset/2**(bit_depth),
+                    0.03,
+                    )
         else:
-            reff = im[ref_id][:,:,0]
-            test = im[i][:,:,0]
+            if color:
+                reff = im[ref_id][:,:,0]
+                test = im[i][:,:,0]
+            else:
+                reff = im[ref_id]
+                test = im[i]
 
         #   Plot reference image and image mask
         if i == ref_id and plot_mask:
@@ -702,14 +721,21 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
 
         elif mode == 'extend':
             #   Define larger image array
-            img_i = np.zeros(
-                (ny+deltay, nx+deltax, nz),
-                dtype='uint'+str(bit_depth)
-                )
+            if color:
+                img_i = np.zeros(
+                    (ny+deltay, nx+deltax, nz),
+                    dtype='uint'+str(bit_depth)
+                    )
+            else:
+                img_i = np.zeros(
+                    (ny+deltay, nx+deltax),
+                    dtype='uint'+str(bit_depth)
+                    )
 
             #   Set Gamma channel if present
-            if nz == 4:
-                img_i[:,:,3] = 2**bit_depth-1
+            if color:
+                if nz == 4:
+                    img_i[:,:,3] = 2**bit_depth-1
 
             #   Calculate start indexes for the larger image array
             ys =  maxy - shifts[0,i]
@@ -742,11 +768,17 @@ def cal_img_shifts_normal(path_in, path_out, formats, out_format, ref_id=0,
             ".FITS",
             ".fits",
             ]
-        if out_format in [".tiff", ".TIFF"]:
-            imsave(trim_path / str(new_name+out_format), img_i[:,:,0:4])
-        elif out_format in default_formats:
-            imsave(trim_path / str(new_name+out_format), img_i[:,:,0:3])
+        if color:
+            if out_format in [".tiff", ".TIFF"]:
+                imsave(trim_path / str(new_name+out_format), img_i[:,:,0:4])
+            elif out_format in default_formats:
+                imsave(trim_path / str(new_name+out_format), img_i[:,:,0:3])
+            else:
+                print('Error: Output format not known :-(')
         else:
-            print('Error: Output format not known :-(')
+            if out_format in default_formats+[".tiff", ".TIFF"]:
+                imsave(trim_path / str(new_name+out_format), img_i)
+            else:
+                print('Error: Output format not known :-(')
 
     sys.stdout.write("\n")
