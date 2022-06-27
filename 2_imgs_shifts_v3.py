@@ -16,17 +16,19 @@
 #   strings to multiple directories.
 #path_in  = '../se_2021_clean_imgs/'
 #path_in  = './examples/'
-path_in = 'out_test_ser/video_imgs/'
-path_in = 'test_ranking/'
+#path_in = 'out_test_ser/video_imgs/'
+#path_in = 'test_ranking/'
+path_in = 'out_halpha12-06-460p25/video_imgs/'
 
 #   Output directory
 #path_out = 'out_test'
-path_out = 'out_test_ser'
-path_out = 'out_test_ranking/'
+#path_out = 'out_test_ser'
+#path_out = 'out_test_ranking/'
+path_out = 'out_halpha12-06-460p25/'
 
 #   Allowed input file formats
 formats = [".tiff", ".TIFF"]
-formats = [".fit", ".fits"]
+# formats = [".fit", ".fits"]
 
 #   Output format
 out_format = ".tiff"

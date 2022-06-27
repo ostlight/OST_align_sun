@@ -10,13 +10,14 @@
 ############################################################################
 
 #   Path to video
-file_path = 'whitelight_2600_2x2_6.ser'
+file_path = 'halpha12-06-460p25.ser'
 
 #   Output directory
-path_out = 'out_test_ser/'
+path_out = 'out_halpha12-06-460p25/'
 
 #   Image output format
 out_format = '.tiff'
+out_format = '.fit'
 
 ############################################################################
 ####                            Libraries                               ####
@@ -54,65 +55,33 @@ if __name__ == '__main__':
     imgs_path = Path(path_out)
     imgs_path = imgs_path / 'video_imgs'
     imgs_path.mkdir(exist_ok=True)
-    #imgs_path = PurePath(path_out)
-    #imgs_path.joinpath('video_imgs')
 
     #   Load configuration for the Planetary System Stacker
     configuration = Configuration()
     configuration.initialize_configuration(read_from_file=False)
 
-    # Create the VideoCapture object.
+    #   Create the VideoCapture object.
     cap = ser_parser.SERParser(file_path, SER_16bit_shift_correction=True)
-    #print(dir(cap))
-    #print(type(cap))
+
+    #   Get number of frames
     frame_count = cap.frame_count
-    #print('cap.frame_count', frame_count)
+
+    #	Get digits of the number of frames -> for the file name
     digits = len(str(frame_count))
-    #print('len(frame_count)', digits)
-    #print('cap.frame_number', cap.frame_number)
-    #print('cap.color', cap.color)
-    print('cap.header', cap.header)
+
+    #	Change the Debayer pattern (is somehow needed in our case)
     cap.header['DebayerPattern'] = cv2.COLOR_BayerBG2BGR
-    #print('read_trailer', cap.read_trailer())
 
-
-    #print(cap.sanity_check(file_path))
-
-    #data0 = cap.read_frame_raw(frame_number=0)
-    #print(data0)
-    #print(data0.shape)
-    #print('cap.frame_number', cap.frame_number)
-    #print(cap.read_frame_raw())
-    #print('cap.frame_number', cap.frame_number)
-
-    #data0 = cap.read_frame(frame_number=0)
-    #print(data0)
-    #print(data0.shape)
-    #print('cap.frame_number', cap.frame_number)
-    #print(cap.read_frame())
-    #print('cap.frame_number', cap.frame_number)
-
+    #	Read all frames
     data = cap.read_all_frames()
-    #print(data)
-    #print(len(data))
-    #print(data[0].shape)
 
+    #   Loop over all frames
     for j, img in enumerate(data):
+        #   Create new name and path
         new_name = aux.get_basename(file_path)+'_'+str(j+1).rjust(digits, '0')
-        print(new_name)
-        print(imgs_path.name)
-        print(new_name+out_format)
-        #print(imgs_path.name / new_name+out_format)
-        #out_path = Path(imgs_path.name / new_name+out_format)
         out_path = imgs_path / str(new_name+out_format)
-        print(out_path)
+        #   Write frame as image
         imsave(
-            #os.path.join(imgs_path.name, new_name)+out_format,
             out_path,
             img,
             )
-
-    ##   Get video as a frames collection
-    #frames = Frames(configuration, path_list, type='video')
-    #print(dir(frames))
-    #print(type(frames))
