@@ -95,12 +95,14 @@ def mkfilelist(path, formats=[".FIT",".fit",".FITS",".fits"], addpath=False,
     tempList = []
     for i in range(0, len(fileList)):
         for j, form in enumerate(formats):
-            if fileList[i].find(form)!=-1:
-                    if addpath:
-                        tempList.append(os.path.join(path,fileList[i]))
-                    else:
-                        #tempList.append("%s"%(fileList[i]))
-                        tempList.append(fileList[i])
+            #	Get digits of file ending
+            digits = len(str(form))
+
+            if fileList[i].find(form,-digits)!=-1:
+                if addpath:
+                    tempList.append(os.path.join(path,fileList[i]))
+                else:
+                    tempList.append(fileList[i])
     fileList=tempList
     nfiles=int(len(fileList))
 

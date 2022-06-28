@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore')
 from skimage import data
 from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
-from skimage.io import imread, imread_collection, imsave, imshow
+from skimage.io import imread_collection, imsave, imshow
 
 import checks
 import aux

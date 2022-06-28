@@ -21,7 +21,8 @@
 #path_in  = 'out_2022-05-05-1506_9-1-CapObj/cut/'
 #path_in  = 'out_2022-05-05-1515_0-1-CapObj/cut/'
 #path_in  = 'out_multi/cut/'
-path_in = 'test_ranking/'
+#path_in = 'test_ranking/'
+path_in = 'out_test_halpha12-06-460p25/cut/'
 
 #   Output directory
 # path_out = 'out_2022-05-05-1441_7-1-CapObj/'
@@ -31,11 +32,13 @@ path_in = 'test_ranking/'
 #path_out = 'out_2022-05-05-1506_9-1-CapObj/'
 #path_out = 'out_2022-05-05-1515_0-1-CapObj/'
 #path_out = 'out_multi/'
-path_out = 'out_test_ranking/'
+#path_out = 'out_test_ranking/'
+path_out = 'out_test_halpha12-06-460p25/'
 
 #   Allowed input file formats
 #formats = [".jpg", ".jpeg", ".JPG", ".JPEG"]
-formats = [".FIT",".fit",".FITS",".fits"]
+#formats = [".FIT", ".fit", ".FITS", ".fits"]
+formats = [".tif", ".tiff", ".TIF", ".TIFF"]
 
 #   Image output format
 #out_format = '.jpg'
@@ -121,12 +124,22 @@ xs_cut = 160
 #xe_cut = 560
 xe_cut = 560
 
+# halpha12-06-460p25_998
+#   Upper edge
+ys_cut = 10
+#   Lower edge
+ye_cut = 50
+#   Left edge
+xs_cut = 0
+#   Right edge
+xe_cut = 20
+
 
 ###
 #   Find the best images by means of Planetary System Stacker
 #
 best_img = False
-best_img = True
+#best_img = True
 
 #   Number of best images to br returned
 nimgs  = 1
@@ -136,7 +149,8 @@ window = 1
 
 #   Step size to be evaluated, e.g., ''nimgs=1'' and ''step=20'' means:
 #   select the best image out of every 20 images
-step   = 10
+step   = 5
+#step   = 10
 step   = 20
 
 #   Add last step even if it is < "step"
@@ -147,7 +161,7 @@ add_last_best = False
 #   Stack best images
 #
 stack = False
-#stack = True
+stack = True
 
 #   % of images to be stacked
 stack_percent = 20
@@ -157,6 +171,7 @@ stack_percent = 20
 #stack_interval = 40
 stack_interval = 20
 #stack_interval = 10
+stack_interval = 5
 
 #   Drizzling: Interpolate input frames by a drizzle factor
 #              Possible values: 1.5x, 2x, 3x, Off
@@ -302,11 +317,11 @@ from astropy import log
 log.setLevel('ERROR')
 
 from skimage import data
-from skimage.io import imsave
+from skimage.io import imsave, imread_collection
 
-from skimage import exposure
-from skimage.morphology import disk
-from skimage.filters import rank
+#from skimage import exposure
+#from skimage.morphology import disk
+#from skimage.filters import rank
 
 import planetary_system_stacker as pss
 sys.path.append(pss.__path__[0])
@@ -319,6 +334,7 @@ from rank_frames import RankFrames
     #RankFrames,
     #)
 
+import postprocess
 import checks
 import aux
 
@@ -342,27 +358,48 @@ checks.check_out(path_out)
 post_path = Path(Path(path_out) / 'postpro')
 post_path.mkdir(exist_ok=True)
 
+#   FITS?
+fitsformats = set([".FIT", ".fit", ".FITS", ".fits"])
+bfits = len(set(formats).intersection(fitsformats)) >= 1
+
 #   Get file collection
 sys.stdout.write("\rRead images...\n")
-ifc = ccdp.ImageFileCollection(path_in)
+if bfits:
+    ifc = ccdp.ImageFileCollection(path_in)
+
+    #   Apply filter to the image collection
+    #   -> This is necessary so that the path to the image directory is added
+    #      to the file names. This is required for `calculate_image_shifts`.
+    ifc = ifc.filter(SIMPLE=True)
+
+    #   File list
+    files = ifc.files
+
+    #   Number of files
+    nfiles = len(files)
+else:
+    files, nfiles = aux.mkfilelist(
+        path_in,
+        formats=formats,
+        addpath=True,
+        sort=True,
+        )
+    if len(files) == 0:
+        raise RuntimeError('No files found -> EXIT')
+    ifc = imread_collection(files)
+
+#	Get digits of number of files
+digits = len(str(nfiles))
 
 #   Get current directory
 pwd = os.path.dirname(os.path.abspath(__file__))
 
-#   Apply filter to the image collection
-#   -> This is necessary so that the path to the image directory is added
-#      to the file names. This is required for `calculate_image_shifts`.
-ifc = ifc.filter(SIMPLE=True)
-
-#   File list
-files = ifc.files
-
-#   Number of files
-nfiles = len(files)
-
 #   Get reference image
-ref_img_name = ifc.files[0]
-ref_img_data = CCDData.read(ref_img_name, unit='adu').data
+if bfits:
+    ref_img_name = ifc.files[0]
+    ref_img_data = CCDData.read(ref_img_name, unit='adu').data
+else:
+    ref_img_data = ifc[0]
 
 #   Bit depth
 if ref_img_data.dtype == 'uint8':
@@ -390,11 +427,17 @@ if stack:
     j = 1
     for i, img_path in enumerate(files):
 
-        #   Get image base name
-        basename = aux.get_basename(img_path)
+        #   Get image file name
+        filename = str(img_path).split('/')[-1]
 
-        #   Compose file name
-        filename = basename+'.fit'
+        #   File type
+        filetype = filename.split('.')[-1]
+
+        ##   Get image base name
+        #basename = aux.get_basename(img_path)
+
+        ##   Compose file name
+        #filename = basename+'.fit'
 
         #   Create a link to the image in the temporary directory
         os.symlink(pwd+'/'+img_path, temp_dir.name+'/'+filename)
@@ -403,13 +446,14 @@ if stack:
         if ((i != 0 and i%stack_interval == 0) or
             (i+1 == len(files) and i%stack_interval != 0) and add_last_stack):
 
-            #   Construct command for the Planetary System Stacker
+            #   Construct command for the Planetary System Stack/tmp/tmp4gxsqr6p_pss.tiffer
             #command = "python3 planetary_system_stacker.py " \
             #+ " --out_format tiff -b 4 -s "+str(int(stack_percent)) \
                     #+ " -a 52 -w 20 --normalize_bright --drizzle 1.5x"
+                    #+ " --out_format fits -b 4 -s "+str(int(stack_percent)) \
             command = "PlanetarySystemStacker " \
                     + temp_dir.name \
-                    + " --out_format fits -b 4 -s "+str(int(stack_percent)) \
+                    + " --out_format tiff -b 4 -s "+str(int(stack_percent)) \
                     + " -a "+str(box_width)+" -w "+str(search_width) \
                     + " --normalize_bright" \
                     + " --align_min_struct "+str(min_struct) \
@@ -424,13 +468,11 @@ if stack:
             # subprocess.run([command], shell=True, text=True)
             subprocess.run([command], shell=True)
 
-            #
-            #path_stacked_imgs.append(temp_dir.name+'_pss.fits')
-
             #   Create a link to the stack images in a temporary directory
             os.symlink(
-                temp_dir.name+'_pss.fits',
-                temp_dir_stack.name+'/'+str(j).rjust(6, '0')+"_stack.fit"
+                temp_dir.name+'_pss.tiff',
+                #temp_dir.name+'_pss.'+filetype,
+                temp_dir_stack.name+'/'+str(j).rjust(digits, '0')+"_stack."+filetype
                 )
             j += 1
 
@@ -438,11 +480,22 @@ if stack:
             temp_dir = tempfile.TemporaryDirectory()
 
     #   Create new file collection
-    #ifc = ccdp.ImageFileCollection(filenames=path_stacked_imgs)
-    ifc = ccdp.ImageFileCollection(temp_dir_stack.name)
+    if bfits:
+        #ifc = ccdp.ImageFileCollection(filenames=path_stacked_imgs)
+        ifc = ccdp.ImageFileCollection(temp_dir_stack.name)
 
-    #   Number of files
-    nfiles = len(ifc.files)
+        #   Number of files
+        nfiles = len(ifc.files)
+    else:
+        files, nfiles = aux.mkfilelist(
+            temp_dir_stack.name,
+            formats=formats,
+            addpath=True,
+            sort=True,
+            )
+
+        ifc = imread_collection(files)
+
 
     #   Scale trimming indices to account for drizzling
     if drizzle != 'Off':
@@ -476,8 +529,6 @@ if best_img and not stack:
             (i+1 == len(files) and i%step != 0 and add_last_best)):
             #   Get images as a frames collection
             frames = Frames(configuration, path_list, type='image')
-            print(dir(frames))
-            print(type(frames))
 
             #   Rank images
             ranked_frames = RankFrames(frames, configuration)
@@ -488,16 +539,12 @@ if best_img and not stack:
 
             #print ("\nIndices of the best frames "+str(best_indices)+" in step number "
                 #+str(int(i/step)))
-
             for indice in best_indices:
                 #   Path to best image
                 path_best = path_list[indice]
 
-                #   Get image base name
-                basename = aux.get_basename(path_best)
-
-                #   Compose file name
-                filename = basename+'.fit'
+                #   Get image file name
+                filename = str(path_best).split('/')[-1]
 
                 #   Create a link to the best images in the temporary directory
                 os.symlink(pwd+'/'+path_best, temp_dir.name+'/'+filename)
@@ -507,150 +554,220 @@ if best_img and not stack:
 
 
     #   Create new file collection
-    ifc = ccdp.ImageFileCollection(temp_dir.name)
+    if bfits:
+        ifc = ccdp.ImageFileCollection(temp_dir.name)
 
-    #   Number of files
-    nfiles = len(ifc.files)
+        #   Number of files
+        nfiles = len(ifc.files)
+    else:
+        files, nfiles = aux.mkfilelist(
+            temp_dir.name,
+            formats=formats,
+            addpath=True,
+            sort=True,
+            )
+
+        ifc = imread_collection(files)
 
 
 ###
 #   Cut pictures and postprocess them
 #
-#   Loop over and trim all images
-i = 0
-img_list = []
-for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
-    #   Write status to console
-    sys.stdout.write("\rApply cuts to images %i/%i" % (i+1, nfiles))
-    sys.stdout.flush()
-    i += 1
+if bfits:
+    #   Loop over and trim all images
+    i = 0
+    #img_list = []
+    for img_ccd, fname in ifc.ccds(ccd_kwargs={'unit': 'adu'}, return_fname=True):
+        #   Write status to console
+        sys.stdout.write("\rApply cuts to images %i/%i" % (i+1, nfiles))
+        sys.stdout.flush()
+        i += 1
 
-    #   Trim images
-    img_out = ccdp.trim_image(img_ccd[ys_cut:-ye_cut, xs_cut:-xe_cut])
+        #   Trim images
+        img_out = ccdp.trim_image(img_ccd[ys_cut:-ye_cut, xs_cut:-xe_cut])
 
-
-    ###
-    #   Postprocessing
-    #
-
-    #   Global histogram equalize
-    if global_histo_equalization:
-        img_glob_eq = exposure.equalize_hist(img_out.data)
-        img_out.data = img_glob_eq*2**(bit_depth)
-
-    #   Local equalization
-    if local_histo_equalization:
-        footprint = disk(disk_size)
-        img_eq = rank.equalize(img_out.data, footprint)
-        img_out.data = img_eq
-
-    #   Adaptive histogram equalization
-    if adaptive_histo_equalization:
-        img_adapteq = exposure.equalize_adapthist(
+        #   Postprocess image
+        img_out.data = postprocess.postprocess(
             img_out.data,
-            clip_limit=clip_limit,
-            )
-        img_out.data = img_adapteq*2**(bit_depth)
-
-    #   log contrast adjustment
-    if log_cont_adjust:
-        logarithmic_corrected = exposure.adjust_log(img_out.data, log_gain)
-        img_out.data = logarithmic_corrected
-
-    #   Gamma contrast adjustment
-    if gamma_adjust:
-        gamma_corrected = exposure.adjust_gamma(img_out.data, gamma)
-        img_out.data = gamma_corrected
-
-    #   Contrast stretching
-    if contrast_stretching:
-        plow, pup = np.percentile(
-            img_out.data,
-            (lower_percentile, upper_percentile),
-            )
-        img_rescale = exposure.rescale_intensity(
-            img_out.data,
-            in_range=(plow, pup),
-            )
-        img_out.data = img_rescale
-
-
-    ###
-    #   Sharp the image
-    #
-    #   Default layer
-    layers = [aux.PostprocLayer(1., 1., 0., 20, 0., False)]
-
-    #   Add user layer
-    for layer in postprocess_layers:
-        layers.append(aux.PostprocLayer(*layer))
-
-    #   Sharp/prostprocess image
-    img_out.data = aux.post_process(img_out.data, layers)
-
-
-    ###
-    #   Prepare array with RGB image
-    #
-    if mkRGB and out_format not in [".FIT",".fit",".FITS",".fits"]:
-        #   Get shape of the trimmed image
-        out_shape = img_out.data.shape
-
-        #   Prepare array
-        rgb_img = np.zeros(
-            (out_shape[0], out_shape[1], 4),
-            dtype='uint8',
+            bit_depth,
+            global_histo_equalization,
+            local_histo_equalization,
+            disk_size,
+            adaptive_histo_equalization,
+            clip_limit,
+            log_cont_adjust,
+            log_gain,
+            gamma_adjust,
+            gamma,
+            contrast_stretching,
+            upper_percentile,
+            lower_percentile,
+            postprocess_layers,
             )
 
-        #   Scale data, convert data to 8bit range and add data to the array
-        rgb_img[:,:,0] = img_out.data * r_scale / 2**(bit_depth) * 255
-        rgb_img[:,:,1] = img_out.data * g_scale / 2**(bit_depth) * 255
-        rgb_img[:,:,2] = img_out.data * b_scale / 2**(bit_depth) * 255
-        rgb_img[:,:,3] = 255
 
+        ###
+        #   Prepare array with RGB image
+        #
+        if mkRGB and out_format not in [".FIT",".fit",".FITS",".fits"]:
+            #   Get shape of the trimmed image
+            out_shape = img_out.data.shape
 
-    ###
-    #   Write postprocess image
-    #
-    new_name = os.path.basename(fname).split('.')[0]
-    if out_format in [".tiff", ".TIFF"]:
-        if mkRGB:
-            imsave(
-                os.path.join(path_out, 'postpro', new_name)+out_format,
-                rgb_img,
+            #   Prepare array
+            rgb_img = np.zeros(
+                (out_shape[0], out_shape[1], 4),
+                dtype='uint8',
                 )
+
+            #   Scale data, convert data to 8bit range and add data to the array
+            rgb_img[:,:,0] = img_out.data * r_scale / 2**(bit_depth) * 255
+            rgb_img[:,:,1] = img_out.data * g_scale / 2**(bit_depth) * 255
+            rgb_img[:,:,2] = img_out.data * b_scale / 2**(bit_depth) * 255
+            rgb_img[:,:,3] = 255
+
+
+        ###
+        #   Write postprocess image
+        #
+        new_name = os.path.basename(fname).split('.')[0]
+        if out_format in [".tiff", ".TIFF"]:
+            if mkRGB:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    rgb_img,
+                    )
+            else:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    img_out.data,
+                    )
+        elif out_format in [".jpg", ".jpeg", ".JPG", ".JPEG"]:
+            if mkRGB:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    rgb_img[:,:,0:3],
+                    )
+            else:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    img_out.data,
+                    )
+        elif out_format in [".FIT",".fit",".FITS",".fits"]:
+            img_out.write(post_path / fname, overwrite=True)
         else:
-            imsave(
-                os.path.join(path_out, 'postpro', new_name)+out_format,
-                img_out.data,
+            print('Error: Output format not known :-(')
+
+
+        #   Image normalizatiom by means of ImageMagick
+        if norm_image_magick:
+            command = ('convert -normalize '+os.path.join(path_out, 'postpro', new_name)+out_format+' '+os.path.join(path_out, 'postpro', new_name)+out_format)
+            #print(command)
+            subprocess.run(
+            [command],
+            shell=True,
+            #text=True,
+            #capture_output=True,
+            )
+else:
+    for i, fname in enumerate(files):
+        #   Write status to console
+        id_c = i+1
+        sys.stdout.write("\rApply shift to image %i/%i" % (id_c, nfiles))
+        sys.stdout.flush()
+
+        #   Trim images
+        img_i = ifc[i][ys_cut:-ye_cut, xs_cut:-xe_cut]
+
+        #   Postprocess image
+        img_i = postprocess.postprocess(
+            img_i,
+            bit_depth,
+            global_histo_equalization,
+            local_histo_equalization,
+            disk_size,
+            adaptive_histo_equalization,
+            clip_limit,
+            log_cont_adjust,
+            log_gain,
+            gamma_adjust,
+            gamma,
+            contrast_stretching,
+            upper_percentile,
+            lower_percentile,
+            postprocess_layers,
+            )
+
+        ###
+        #   Prepare array with RGB image
+        #
+        if mkRGB and out_format not in [".FIT",".fit",".FITS",".fits"]:
+            #   Get shape of the trimmed image
+            out_shape = img_i.shape
+
+            #   Prepare array
+            rgb_img = np.zeros(
+                (out_shape[0], out_shape[1], 4),
+                dtype='uint8',
                 )
-    elif out_format in [".jpg", ".jpeg", ".JPG", ".JPEG"]:
-        if mkRGB:
-            imsave(
-                os.path.join(path_out, 'postpro', new_name)+out_format,
-                rgb_img[:,:,0:3],
-                )
+
+            #   Scale data, convert data to 8bit range and add data to the array
+            rgb_img[:,:,0] = img_i * r_scale / 2**(bit_depth) * 255
+            rgb_img[:,:,1] = img_i * g_scale / 2**(bit_depth) * 255
+            rgb_img[:,:,2] = img_i * b_scale / 2**(bit_depth) * 255
+            rgb_img[:,:,3] = 255
+
+
+
+        ###
+        #   Write postprocess image
+        #
+        new_name = os.path.basename(fname).split('.')[0]
+        default_formats = [
+            ".jpg",
+            ".jpeg",
+            ".JPG",
+            ".JPEG",
+            ".FIT",
+            ".fit",
+            ".FITS",
+            ".fits",
+            ]
+        if out_format in [".tiff", ".TIFF"]:
+            if mkRGB:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    rgb_img,
+                    )
+            else:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    img_i,
+                    )
+        elif out_format in default_formats:
+            if mkRGB:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    rgb_img[:,:,0:3],
+                    )
+            else:
+                imsave(
+                    os.path.join(path_out, 'postpro', new_name)+out_format,
+                    img_i,
+                    )
         else:
-            imsave(
-                os.path.join(path_out, 'postpro', new_name)+out_format,
-                img_out.data,
-                )
-    elif out_format in [".FIT",".fit",".FITS",".fits"]:
-        img_out.write(post_path / fname, overwrite=True)
-    else:
-        print('Error: Output format not known :-(')
+            print('Error: Output format not known :-(')
 
 
-    #   Image normalizatiom by means of ImageMagick
-    if norm_image_magick:
-        command = ('convert -normalize '+os.path.join(path_out, 'postpro', new_name)+out_format+' '+os.path.join(path_out, 'postpro', new_name)+out_format)
-        #print(command)
-        subprocess.run(
-        [command],
-        shell=True,
-        #text=True,
-        #capture_output=True,
-        )
+        #   Image normalizatiom by means of ImageMagick
+        if norm_image_magick:
+            command = ('convert -normalize '+os.path.join(path_out, 'postpro', new_name)+out_format+' '+os.path.join(path_out, 'postpro', new_name)+out_format)
+            #print(command)
+            subprocess.run(
+            [command],
+            shell=True,
+            #text=True,
+            #capture_output=True,
+            )
 
 sys.stdout.write("\n")
 
