@@ -1,29 +1,28 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Load images of specific formats and calculate shifts to a reference
     image
-'''
-
+"""
 
 ############################################################################
-####           Configuration: modify the file in this section           ####
+#              Configuration: modify the file in this section              #
 ############################################################################
 
 #   Path to the images
 #   The path can be a given as a string to a single directory or a list of
 #   strings to multiple directories.
-#path_in  = '../se_2021_clean_imgs/'
-#path_in  = './examples/'
-#path_in = 'out_test_ser/video_imgs/'
-#path_in = 'test_ranking/'
+# path_in  = '../se_2021_clean_imgs/'
+# path_in  = './examples/'
+# path_in = 'out_test_ser/video_imgs/'
+# path_in = 'test_ranking/'
 path_in = 'out_halpha12-06-460p25/video_imgs/'
 
 #   Output directory
-#path_out = 'out_test'
-#path_out = 'out_test_ser'
-#path_out = 'out_test_ranking/'
+# path_out = 'out_test'
+# path_out = 'out_test_ser'
+# path_out = 'out_test_ranking/'
 path_out = 'out_halpha12-06-460p25/'
 
 #   Allowed input file formats
@@ -32,11 +31,10 @@ formats = [".tiff", ".TIFF"]
 
 #   Output format
 out_format = ".tiff"
-#out_format = ".fit"
+# out_format = ".fit"
 
 #   ID of the reference image
 ref_id = 0
-
 
 ###
 #   Extend or cut image -> The images can be either cut to the common
@@ -45,9 +43,8 @@ ref_id = 0
 #                       -> Limitation: ``extend`` is currently not available
 #                                      for FITS files
 #
-mode = 'extend'
+# mode = 'extend'
 mode = 'cut'
-
 
 ###
 #   Image mask -> used to mask image areas that could spoil the
@@ -55,7 +52,7 @@ mode = 'cut'
 #                 solar eclipse
 #
 #   Mask image?
-bool_mask = True
+# bool_mask = True
 bool_mask = False
 
 #   Points to define the mask -> the area enclosed by the points
@@ -67,18 +64,16 @@ upper_right = True
 #   Add a point for the lower right corner
 lower_right = True
 #   Add a point for the lower left corner
-lower_left  = False
-
+lower_left = False
 
 ###
-#   Apply a heavyside function to the image
+#   Apply a heavy side function to the image
 #
 bool_heavy = False
-#bool_heavy = True
+# bool_heavy = True
 
 #   Background offset
 offset = 0
-
 
 ###
 #   Additional cuts to the images
@@ -92,23 +87,21 @@ xs_cut = 0
 #   Right edge
 xe_cut = 0
 
-
 ###
 #   Plot options
 #
 #   Plot the image mask and reference image
-plot_mask = True
+# plot_mask = True
 plot_mask = False
 
 #   Plot cut images
-plot_cut  = True
-plot_cut  = False
+# plot_cut = True
+plot_cut = False
 #   ID of the image to plot
-id_img    = 10
-
+id_img = 10
 
 ############################################################################
-####                            Libraries                               ####
+#                               Libraries                                  #
 ############################################################################
 
 import sys
@@ -128,7 +121,6 @@ import checks
 import aux
 
 import registration
-
 
 ############################################################################
 ####                               Main                                 ####
@@ -180,7 +172,7 @@ if __name__ == '__main__':
             plot_mask=plot_mask,
             plot_cut=plot_cut,
             id_img=id_img,
-            )
+        )
     else:
         registration.cal_img_shifts_normal(
             path_in,
@@ -203,4 +195,4 @@ if __name__ == '__main__':
             plot_mask=plot_mask,
             plot_cut=plot_cut,
             id_img=id_img,
-            )
+        )
